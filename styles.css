@@ -24,18 +24,16 @@ body {
     display: grid;
     gap: 2px;
     margin-bottom: 20px;
+    justify-content: center;
   }
-
-  .logo-space {
-    background-color: transparent;
+  
+  .logo-block {
+    background-color: white;
+    opacity: 0;
+    aspect-ratio: 1 / 1;
+    transform: translateY(-100vh) scale(0);
+    animation: bounceInFromTop 1s forwards, attractAnimation 7s infinite 10s;
   }
-
-.logo-block {
-  background-color: white;
-  opacity: 0;
-  transform: translateY(-100vh) scale(0);
-  animation: bounceInFromTop 1s forwards, attractAnimation 7s infinite 10s;
-}
 
 @keyframes attractAnimation {
   0%, 100% {
@@ -117,27 +115,29 @@ body {
   }
   
   @media (max-width: 768px) {
-    #logo { font-size: 8vw; }
-    .logo-cube {
-      width: 9vw;
-      height: 9vw;
-      font-size: 4.5vw;
-      margin: 0.25vw;
+    #logo { 
+      gap: 1px;
+      
     }
-    #startText { font-size: 8vw; }
-    #gameOverText { font-size: 12vw; }
+    .logo-block {
+      width: 6vw;
+      height: 6vw;
+    }
+    #startText { font-size: 7vw; }
+    #gameOverText { font-size: 10vw; }
   }
   
   @media (max-width: 480px) {
-    #logo { font-size: 6vw; }
-    .logo-cube {
-      width: 10vw;
-      height: 10vw;
-      font-size: 3.5vw;
-      margin: 0.2vw;
+    #logo { 
+
+      gap: 1px;
     }
-    #startText { font-size: 8vw; }
-    #gameOverText { font-size: 10vw; }
+    .logo-block {
+      width: 5vw;
+      height: 5vw;
+    }
+    #startText { font-size: 6vw; }
+    #gameOverText { font-size: 8vw; }
   }
   
   @media (min-width: 1024px) {

@@ -105,7 +105,7 @@ window.addEventListener('load', generateAsteroidLogo);
     paddles = [];
   
     const aspectRatio = window.innerWidth / window.innerHeight;
-    const paddleWidth = 0.5 * gameScale * (aspectRatio < 1 ? 1.5 : 1);
+    const paddleWidth = 0.3 * gameScale * (aspectRatio < 1 ? 1.5 : 1);
     const paddleHeight = 1 * gameScale * (aspectRatio < 1 ? 0.8 : 1);
   
     for (let i = 0; i < 6; i++) {
