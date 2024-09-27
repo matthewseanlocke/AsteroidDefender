@@ -29,7 +29,7 @@ const GameState = {
   renderer.setSize(window.innerWidth, window.innerHeight);
   document.body.appendChild(renderer.domElement);
   
-function generateAsteroidLogo() {
+  function generateAsteroidLogo() {
     const asteroidLogoData = [
         // 0 = empty, 1 = block
         // Each sub-array represents a row
@@ -44,9 +44,6 @@ function generateAsteroidLogo() {
     const logo = document.getElementById('logo');
     logo.innerHTML = ''; // Clear existing content
 
-    // Define the size for the blocks (adjust as needed)
-    const blockSize = 20; // You can adjust this value to change the overall size
-    
     asteroidLogoData.forEach((row, rowIndex) => {
         row.forEach((cell, cellIndex) => {
             const block = document.createElement('div');
@@ -60,9 +57,9 @@ function generateAsteroidLogo() {
         });
     });
     
-    // Adjust the overall logo size
-    logo.style.gridTemplateColumns = `repeat(${asteroidLogoData[0].length}, ${blockSize}px)`;
-    logo.style.gridTemplateRows = `repeat(${asteroidLogoData.length}, ${blockSize}px)`;
+    // Set the grid layout based on the logo data
+    logo.style.gridTemplateColumns = `repeat(${asteroidLogoData[0].length}, 1fr)`;
+    logo.style.gridTemplateRows = `repeat(${asteroidLogoData.length}, 1fr)`;
 }
 
 // Call this function when the page loads

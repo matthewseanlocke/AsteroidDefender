@@ -1,47 +1,54 @@
 body {
-    margin: 0;
-    overflow: hidden;
-  }
-  canvas {
-    display: block;
-  }
-  #overlay {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    color: white;
-    font-family: Arial, sans-serif;
-    background-color: rgba(0, 0, 0, 0.91);
-  }
+  margin: 0;
+  overflow: hidden;
+}
+canvas {
+  display: block;
+}
+#overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  color: white;
+  font-family: Arial, sans-serif;
+  background-color: rgba(0, 0, 0, 0.91);
+}
 
-  #logo {
-    display: grid;
-    gap: 2px;
-    margin-bottom: 20px;
-    justify-content: center;
-  }
-  
-  .logo-block {
-    background-color: white;
-    opacity: 0;
-    aspect-ratio: 1 / 1;
-    transform: translateY(-100vh) scale(0);
-    animation: bounceInFromTop 1s forwards, attractAnimation 7s infinite 10s;
-  }
+#logo {
+  display: grid;
+  gap: 2px; /* Adjust the gap between blocks as needed */
+  width: 100%; /* Or any specific width */
+  max-width: 600px; /* Optional: set a maximum width */
+  aspect-ratio: 7.6 / 1; /* Maintain the logo's aspect ratio */
+  margin: 0 auto; /* Center the logo if desired */
+}
+
+.logo-block {
+  background-color: white;
+  opacity: 0;
+  aspect-ratio: 1 / 1;
+  transform: translateY(-100vh) scale(0);
+  animation: bounceInFromTop 1s forwards, attractAnimation 7s infinite 10s;
+}
+
+.logo-space {
+  aspect-ratio: 1 / 1; /* Keep spaces square */
+}
 
 @keyframes attractAnimation {
-  0%, 100% {
+  0%,
+  100% {
     background-color: white;
   }
   14.28% {
     background-color: red;
-    transform: translateY(-10px) scale(1)
+    transform: translateY(-10px) scale(1);
   }
   28.57% {
     background-color: blue;
@@ -54,100 +61,96 @@ body {
   }
   71.42% {
     background-color: purple;
-    transform: translateY(-10px) scale(0.5)
+    transform: translateY(-10px) scale(0.5);
   }
-  85.71%, 100% {
+  85.71%,
+  100% {
     background-color: white;
     transform: translateY(0) scale(1.15);
   }
 }
 
-  
-  @keyframes bounceInFromTop {
-    0% {
-      opacity: 0;
-      transform: translateY(-100vh) scale(0);
-    }
-    60% {
-      opacity: 1;
-      transform: translateY(20px) scale(1.1);
-    }
-    80% {
-      transform: translateY(-10px) scale(0.9);
-    }
-    100% {
-      opacity: 1;
-      transform: translateY(0) scale(1.15);
-    }
+@keyframes bounceInFromTop {
+  0% {
+    opacity: 0;
+    transform: translateY(-100vh) scale(0);
   }
+  60% {
+    opacity: 1;
+    transform: translateY(20px) scale(1.1);
+  }
+  80% {
+    transform: translateY(-10px) scale(0.9);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1.15);
+  }
+}
 
-  @keyframes fadeInGrow {
-    to {
-      opacity: 1;
-      transform: scale(1);
-    }
+@keyframes fadeInGrow {
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+#startText {
+  font-size: 6vw;
+  cursor: pointer;
+  height: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 10vh;
+  text-align: center;
+  padding: 10px;
+}
+
+#gameOverText {
+  font-size: 10vw;
+  font-weight: bold;
+  
+  animation: colorChange 2s infinite;
+  margin-top: 5vh;
+  text-align: center;
+}
+
+@keyframes colorChange {
+  0% {
+    color: red;
+  }
+  33% {
+    color: yellow;
+  }
+  66% {
+    color: blue;
+  }
+  100% {
+    color: red;
+  }
+}
+
+@media (orientation: portrait) {
+  #logo {
+    transform: scale(0.6);
+    display: grid;
+    gap: 1px; /* Adjust the gap between blocks as needed */
+    width: 100%; /* Or any specific width */
+    justify-content: center;
+   
+  }
+  
+  .logo-block {
+    width: 2vw; /* Reduce the size of each block */
+    height: 2vh;
+    
   }
   
   #startText {
-    font-size: 6vw;
-    cursor: pointer;
-    height: auto;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin-top: 10vh;
-    text-align: center;
-    padding: 10px;
+    font-size: 5vw; /* Adjust start text size for portrait */
+    margin-top: 5vh; /* Reduce top margin */
   }
-  #gameOverText {
-    font-size: 10vw;
-    font-weight: bold;
-    margin-bottom: 20px;
-    animation: colorChange 2s infinite;
-    margin-top: 5vh;
-    text-align: center;
-  }
-  @keyframes colorChange {
-    0% { color: red; }
-    33% { color: yellow; }
-    66% { color: blue; }
-    100% { color: red; }
-  }
-  
-  @media (max-width: 768px) {
-    #logo { 
-      gap: 1px;
-      
-    }
-    .logo-block {
-      width: 6vw;
-      height: 6vw;
-    }
-    #startText { font-size: 7vw; }
-    #gameOverText { font-size: 10vw; }
-  }
-  
-  @media (max-width: 480px) {
-    #logo { 
 
-      gap: 1px;
-    }
-    .logo-block {
-      width: 5vw;
-      height: 5vw;
-    }
-    #startText { font-size: 6vw; }
-    #gameOverText { font-size: 8vw; }
-  }
-  
-  @media (min-width: 1024px) {
-    #logo { font-size: 6vw; }
-    .logo-cube {
-      width: 6vw;
-      height: 6vw;
-      font-size: 3vw;
-      margin: 0.2vw;
-    }
-    #startText { font-size: 4vw; }
-    #gameOverText { font-size: 5vw; }
-  }
+}
+
