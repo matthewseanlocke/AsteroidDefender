@@ -156,22 +156,42 @@ canvas {
 
 #scoreDisplay {
   position: absolute;
-  top: 20px;
-  right: 20px;
+  top: 8vh;
+  left: 0;
+  right: 0;
   color: white;
-  font-size: 24px;
+  font-size: clamp(48px, 10vw, 120px);
   font-family: Arial, sans-serif;
   z-index: 100;
-  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.7);
+  text-shadow: 0 0 20px rgba(255, 255, 255, 0.8);
   display: none;
+  text-align: center;
+}
+
+@media (orientation: portrait) {
+  #scoreDisplay {
+    top: 14vh;
+    font-size: clamp(48px, 18vw, 120px);
+  }
+}
+
+#currentScore {
+  font-weight: bold;
+  letter-spacing: 2px;
 }
 
 #highScore {
   font-size: 4vw;
-  color: yellow;
+  color: gold;
   margin-top: 20px;
   text-align: center;
   animation: pulse 1.5s infinite;
+}
+
+#highScore .fa-crown {
+  color: gold;
+  font-size: 1.2em;
+  text-shadow: 0 0 10px rgba(255, 215, 0, 0.7);
 }
 
 @keyframes pulse {
