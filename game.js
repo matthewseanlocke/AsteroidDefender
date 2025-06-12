@@ -12,7 +12,7 @@ let isPaused = false;
 // Scoring system
 let currentScore = 0;
 let highScore = 0;
-let lastHitCube = null; // Track the last cube hit for combo scoring
+let lastHitCube = null; // Track the last cube hit for collision tracking
 
 // SETTINGS
 const gameScale = 0.25;
@@ -313,6 +313,8 @@ function checkCollisions() {
         overlay.style.display = "flex";
         gameOverText.style.display = "block";
         startText.style.display = "block";
+        // Show and update high score on game over
+        document.getElementById("highScore").style.display = "block";
         displayHighScore();
         flashInsertCoin();
         animateLogo();
@@ -497,16 +499,8 @@ function checkCubeCollisions() {
         cube1.userData.velocity.multiplyScalar(1.05);
         cube2.userData.velocity.multiplyScalar(1.05);
         
-        // Check if either cube was the last hit by a matching-color paddle
+        // Reset lastHitCube since we're not scoring bonus points anymore
         if (lastHitCube === cube1 || lastHitCube === cube2) {
-          // Add 5 bonus points for cube-to-cube collision after paddle hit
-          currentScore += 5;
-          
-          // Create +5 score animation at the collision position
-          const collisionPosition = cube1.position.clone().add(cube2.position).multiplyScalar(0.5);
-          createScoreAnimation(collisionPosition, 5);
-          
-          // Reset lastHitCube to prevent multiple bonuses from same hit
           lastHitCube = null;
         }
       }
@@ -526,11 +520,23 @@ const logo = document.getElementById("logo");
 const startText = document.getElementById("startText");
 const gameOverText = document.getElementById("gameOverText");
 
+function init() {
+  currentState = GameState.ENTRANCE;
+  overlay.style.display = "flex";
+  gameOverText.style.display = "none";
+  startText.style.opacity = "1";
+  document.getElementById("scoreDisplay").style.display = "none";
+  document.getElementById("highScore").style.display = "none"; // Hide high score on intro screen
+  animateLogo();
+  flashInsertCoin();
+}
+
 function startGame() {
   currentState = GameState.PLAYING;
   isGameOver = false;
   overlay.style.display = "none";
   gameOverText.style.display = "none";
+  document.getElementById("highScore").style.display = "none"; // Hide high score during gameplay
   
   // Reset current score and show score display
   currentScore = 0;
@@ -572,24 +578,6 @@ function flashInsertCoin() {
     visible = !visible;
   }, 400);
 }
-
-function init() {
-  currentState = GameState.ENTRANCE;
-  overlay.style.display = "flex";
-  gameOverText.style.display = "none";
-  startText.style.opacity = "1";
-  document.getElementById("scoreDisplay").style.display = "none";
-  displayHighScore();
-  animateLogo();
-  flashInsertCoin();
-}
-
-startText.addEventListener("click", startGame);
-document.addEventListener("keydown", (event) => {
-  if (event.code === "Space" && currentState !== GameState.PLAYING) {
-    startGame();
-  }
-});
 
 function handleVisibilityChange() {
   if (document.hidden) {
@@ -644,4 +632,12 @@ function createScoreAnimation(position, amount) {
   }, 1500);
 }
 
+startText.addEventListener("click", startGame);
+document.addEventListener("keydown", (event) => {
+  if (event.code === "Space" && currentState !== GameState.PLAYING) {
+    startGame();
+  }
+});
+
+// Initialize the game
 init();
