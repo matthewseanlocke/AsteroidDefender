@@ -720,27 +720,29 @@ function createPowerUpSphere() {
       varying vec2 vUv;
       
       vec3 rainbow(float t) {
-        // Vibrant rainbow color mapping
-        vec3 color = vec3(0.0);
-        float r = sin(t * 6.28318) * 0.5 + 0.5;
-        float g = sin(t * 6.28318 + 2.0944) * 0.5 + 0.5;
-        float b = sin(t * 6.28318 + 4.1888) * 0.5 + 0.5;
-        return vec3(r, g, b);
+        vec3 color;
+        color.r = sin(t * 6.28318) * 0.5 + 0.5;
+        color.g = sin(t * 6.28318 + 2.0944) * 0.5 + 0.5;
+        color.b = sin(t * 6.28318 + 4.1888) * 0.5 + 0.5;
+        return color;
       }
       
       void main() {
-        // Create pulsing rainbow effect
-        vec2 pos = vUv;
-        float d = length(pos - vec2(0.5, 0.5));
-        vec3 color = rainbow(d * 3.0 + time * 2.0);
+        vec2 centered = vUv - 0.5;
+        float dist = length(centered);
+        vec3 color = rainbow(dist * 3.0 - time * 2.0);
         
-        // Add a glow effect
-        float glow = 0.5 * (1.0 + sin(time * 3.0));
-        color = mix(color, vec3(1.0), glow * 0.3);
+        // Add glow at the edges
+        float edgeGlow = smoothstep(0.35, 0.5, dist);
+        color = mix(color, vec3(1.0), edgeGlow * 0.7);
         
-        gl_FragColor = vec4(color, 1.0);
+        // Adjust opacity based on distance for a soft edge
+        float alpha = smoothstep(0.5, 0.35, dist);
+        
+        gl_FragColor = vec4(color, alpha * 0.7);
       }
-    `
+    `,
+    transparent: true,
   });
   
   // Create the power-up sphere mesh
@@ -881,10 +883,47 @@ function checkPowerUpPaddleCollisions() {
 function createBounceEffect(position) {
   // Create a small burst effect
   const effectGeometry = new THREE.SphereGeometry(0.2 * gameScale, 8, 8);
-  const effectMaterial = new THREE.MeshBasicMaterial({
-    color: 0xffffff,
+  
+  // Create rainbow shader material
+  const effectMaterial = new THREE.ShaderMaterial({
+    uniforms: {
+      time: { value: 0 }
+    },
+    vertexShader: `
+      varying vec2 vUv;
+      void main() {
+        vUv = uv;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }
+    `,
+    fragmentShader: `
+      uniform float time;
+      varying vec2 vUv;
+      
+      vec3 rainbow(float t) {
+        vec3 color;
+        color.r = sin(t * 6.28318) * 0.5 + 0.5;
+        color.g = sin(t * 6.28318 + 2.0944) * 0.5 + 0.5;
+        color.b = sin(t * 6.28318 + 4.1888) * 0.5 + 0.5;
+        return color;
+      }
+      
+      void main() {
+        vec2 centered = vUv - 0.5;
+        float dist = length(centered);
+        vec3 color = rainbow(dist * 5.0 - time * 3.0);
+        
+        // Add glow at the edges
+        float edgeGlow = smoothstep(0.35, 0.5, dist);
+        color = mix(color, vec3(1.0), edgeGlow * 0.5);
+        
+        // Adjust opacity based on distance for a soft edge
+        float alpha = smoothstep(0.5, 0.35, dist);
+        
+        gl_FragColor = vec4(color, alpha * 0.8);
+      }
+    `,
     transparent: true,
-    opacity: 0.7
   });
   
   const effect = new THREE.Mesh(effectGeometry, effectMaterial);
@@ -893,10 +932,12 @@ function createBounceEffect(position) {
   
   // Animate the effect
   let scale = 0.1;
+  let time = 0;
   const expandEffect = setInterval(() => {
     scale += 0.2;
+    time += 0.1;
     effect.scale.set(scale, scale, scale);
-    effectMaterial.opacity = Math.max(0, 0.7 - scale * 0.3);
+    effectMaterial.uniforms.time.value = time;
     
     if (scale >= 2) {
       clearInterval(expandEffect);
@@ -1088,27 +1129,29 @@ function launchStoredPowerUp(index) {
       varying vec2 vUv;
       
       vec3 rainbow(float t) {
-        // Vibrant rainbow color mapping
-        vec3 color = vec3(0.0);
-        float r = sin(t * 6.28318) * 0.5 + 0.5;
-        float g = sin(t * 6.28318 + 2.0944) * 0.5 + 0.5;
-        float b = sin(t * 6.28318 + 4.1888) * 0.5 + 0.5;
-        return vec3(r, g, b);
+        vec3 color;
+        color.r = sin(t * 6.28318) * 0.5 + 0.5;
+        color.g = sin(t * 6.28318 + 2.0944) * 0.5 + 0.5;
+        color.b = sin(t * 6.28318 + 4.1888) * 0.5 + 0.5;
+        return color;
       }
       
       void main() {
-        // Create pulsing rainbow effect
-        vec2 pos = vUv;
-        float d = length(pos - vec2(0.5, 0.5));
-        vec3 color = rainbow(d * 3.0 + time * 2.0);
+        vec2 centered = vUv - 0.5;
+        float dist = length(centered);
+        vec3 color = rainbow(dist * 3.0 - time * 2.0);
         
-        // Add a glow effect
-        float glow = 0.5 * (1.0 + sin(time * 3.0));
-        color = mix(color, vec3(1.0), glow * 0.3);
+        // Add glow at the edges
+        float edgeGlow = smoothstep(0.35, 0.5, dist);
+        color = mix(color, vec3(1.0), edgeGlow * 0.7);
         
-        gl_FragColor = vec4(color, 1.0);
+        // Adjust opacity based on distance for a soft edge
+        float alpha = smoothstep(0.5, 0.35, dist);
+        
+        gl_FragColor = vec4(color, alpha * 0.7);
       }
-    `
+    `,
+    transparent: true,
   });
   
   // Create the power-up sphere mesh
@@ -1151,10 +1194,47 @@ function launchStoredPowerUp(index) {
 function createLaunchEffect(position) {
   // Create a burst effect
   const effectGeometry = new THREE.SphereGeometry(0.2 * gameScale, 8, 8);
-  const effectMaterial = new THREE.MeshBasicMaterial({
-    color: 0xffffff,
+  
+  // Create rainbow shader material
+  const effectMaterial = new THREE.ShaderMaterial({
+    uniforms: {
+      time: { value: 0 }
+    },
+    vertexShader: `
+      varying vec2 vUv;
+      void main() {
+        vUv = uv;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }
+    `,
+    fragmentShader: `
+      uniform float time;
+      varying vec2 vUv;
+      
+      vec3 rainbow(float t) {
+        vec3 color;
+        color.r = sin(t * 6.28318) * 0.5 + 0.5;
+        color.g = sin(t * 6.28318 + 2.0944) * 0.5 + 0.5;
+        color.b = sin(t * 6.28318 + 4.1888) * 0.5 + 0.5;
+        return color;
+      }
+      
+      void main() {
+        vec2 centered = vUv - 0.5;
+        float dist = length(centered);
+        vec3 color = rainbow(dist * 5.0 + time * 3.0);
+        
+        // Add glow at the edges
+        float edgeGlow = smoothstep(0.35, 0.5, dist);
+        color = mix(color, vec3(1.0), edgeGlow * 0.5);
+        
+        // Adjust opacity based on distance for a soft edge
+        float alpha = smoothstep(0.5, 0.35, dist);
+        
+        gl_FragColor = vec4(color, alpha * 0.8);
+      }
+    `,
     transparent: true,
-    opacity: 0.7
   });
   
   const effect = new THREE.Mesh(effectGeometry, effectMaterial);
@@ -1163,10 +1243,12 @@ function createLaunchEffect(position) {
   
   // Animate the effect
   let scale = 0.1;
+  let time = 0;
   const expandEffect = setInterval(() => {
     scale += 0.3;
+    time += 0.15;
     effect.scale.set(scale, scale, scale);
-    effectMaterial.opacity = Math.max(0, 0.7 - scale * 0.3);
+    effectMaterial.uniforms.time.value = time;
     
     if (scale >= 3) {
       clearInterval(expandEffect);
@@ -1185,10 +1267,47 @@ function resetStoredPowerUps() {
 function createPowerUpEffect() {
   // Create a pulsing light effect at the center
   const effectGeometry = new THREE.SphereGeometry(1.5 * gameScale, 32, 32);
-  const effectMaterial = new THREE.MeshBasicMaterial({
-    color: 0xffffff,
+  
+  // Create shader material for rainbow effect
+  const effectMaterial = new THREE.ShaderMaterial({
+    uniforms: {
+      time: { value: 0 }
+    },
+    vertexShader: `
+      varying vec2 vUv;
+      void main() {
+        vUv = uv;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }
+    `,
+    fragmentShader: `
+      uniform float time;
+      varying vec2 vUv;
+      
+      vec3 rainbow(float t) {
+        vec3 color;
+        color.r = sin(t * 6.28318) * 0.5 + 0.5;
+        color.g = sin(t * 6.28318 + 2.0944) * 0.5 + 0.5;
+        color.b = sin(t * 6.28318 + 4.1888) * 0.5 + 0.5;
+        return color;
+      }
+      
+      void main() {
+        vec2 centered = vUv - 0.5;
+        float dist = length(centered);
+        vec3 color = rainbow(dist * 3.0 - time * 2.0);
+        
+        // Add glow at the edges
+        float edgeGlow = smoothstep(0.35, 0.5, dist);
+        color = mix(color, vec3(1.0), edgeGlow * 0.7);
+        
+        // Adjust opacity based on distance for a soft edge
+        float alpha = smoothstep(0.5, 0.35, dist);
+        
+        gl_FragColor = vec4(color, alpha * 0.7);
+      }
+    `,
     transparent: true,
-    opacity: 0.7
   });
   
   const effect = new THREE.Mesh(effectGeometry, effectMaterial);
@@ -1196,10 +1315,12 @@ function createPowerUpEffect() {
   
   // Animate the effect
   let scale = 0.1;
+  let time = 0;
   const expandEffect = setInterval(() => {
     scale += 0.1;
+    time += 0.05;
     effect.scale.set(scale, scale, scale);
-    effectMaterial.opacity = Math.max(0, 0.7 - scale * 0.2);
+    effectMaterial.uniforms.time.value = time;
     
     if (scale >= 3) {
       clearInterval(expandEffect);
