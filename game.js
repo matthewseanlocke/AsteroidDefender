@@ -14,6 +14,11 @@ let currentScore = 0;
 let highScore = 0;
 let lastHitCube = null; // Track the last cube hit for collision tracking
 
+// Power-up system
+let powerUpSphere = null;
+let nextPowerUpThreshold = 10; // First power-up at 10 points
+const powerUpInterval = 10; // New power-up every 10 points
+
 // SETTINGS
 const gameScale = 0.25;
 const cubeSpeed = 0.02 * Math.sqrt(gameScale);
@@ -361,10 +366,20 @@ function checkCollisions() {
 
         // Only add points if the paddle color matches the cube color
         if (cube.userData.colorIndex === paddle.userData.colorIndex) {
+          // Update score
           currentScore += 1;
+          
+          // Check if we reached a power-up threshold
+          if (currentScore >= nextPowerUpThreshold && !powerUpSphere) {
+            // Spawn a power-up
+            createPowerUpSphere();
+            // Set next threshold
+            nextPowerUpThreshold += powerUpInterval;
+          }
+          
           // Create +1 score animation at the paddle hit position
           createScoreAnimation(paddleWorldPosition, 1);
-          // Save the last hit cube for combo scoring
+          // Save the last hit cube for collision tracking
           lastHitCube = cube;
         }
 
@@ -433,22 +448,40 @@ function gameLoop() {
   if (!isPaused) {
     // Update cube positions and rotations regardless of game state
     cubes.forEach((cube) => {
-      cube.position.add(cube.userData.velocity);
-      cube.rotation.x += cube.userData.rotationSpeed.x;
-      cube.rotation.y += cube.userData.rotationSpeed.y;
-      cube.rotation.z += cube.userData.rotationSpeed.z;
+      if (cube && cube.position && cube.userData) {
+        cube.position.add(cube.userData.velocity);
+        cube.rotation.x += cube.userData.rotationSpeed.x;
+        cube.rotation.y += cube.userData.rotationSpeed.y;
+        cube.rotation.z += cube.userData.rotationSpeed.z;
+      }
     });
 
     // Check for cube-to-cube collisions regardless of game state
     checkCubeCollisions();
 
     if (currentState === GameState.PLAYING && !isGameOver) {
-      paddleGroup.rotation.z += rotationSpeed;
+      if (paddleGroup) {
+        paddleGroup.rotation.z += rotationSpeed;
+      }
 
-      if (sphere) {
+      if (sphere && sphere.userData) {
         sphere.rotation.x += sphere.userData.rotationSpeed.x;
         sphere.rotation.y += sphere.userData.rotationSpeed.y;
         sphere.rotation.z += sphere.userData.rotationSpeed.z;
+      }
+
+      // Update power-up sphere if it exists
+      if (powerUpSphere) {
+        try {
+          updatePowerUpSphere();
+        } catch (error) {
+          console.error("Error updating power-up sphere:", error);
+          // Clean up in case of error
+          if (powerUpSphere) {
+            scene.remove(powerUpSphere);
+            powerUpSphere = null;
+          }
+        }
       }
 
       checkCollisions();
@@ -458,10 +491,12 @@ function gameLoop() {
     // Update exploding paddles when game is over, regardless of current state
     if (isGameOver) {
       paddles.forEach((paddle) => {
-        paddle.position.add(paddle.userData.velocity);
-        paddle.rotation.x += paddle.userData.rotationSpeed.x;
-        paddle.rotation.y += paddle.userData.rotationSpeed.y;
-        paddle.rotation.z += paddle.userData.rotationSpeed.z;
+        if (paddle && paddle.position && paddle.userData) {
+          paddle.position.add(paddle.userData.velocity);
+          paddle.rotation.x += paddle.userData.rotationSpeed.x;
+          paddle.rotation.y += paddle.userData.rotationSpeed.y;
+          paddle.rotation.z += paddle.userData.rotationSpeed.z;
+        }
       });
     }
 
@@ -543,6 +578,13 @@ function startGame() {
   lastHitCube = null;
   document.getElementById("scoreDisplay").style.display = "block";
   updateScoreDisplay();
+  
+  // Reset power-up system
+  nextPowerUpThreshold = 10;
+  if (powerUpSphere) {
+    scene.remove(powerUpSphere);
+    powerUpSphere = null;
+  }
 
   cubes.forEach((cube) => scene.remove(cube));
   cubes.length = 0;
@@ -641,3 +683,262 @@ document.addEventListener("keydown", (event) => {
 
 // Initialize the game
 init();
+
+// Create a rainbow power-up sphere
+function createPowerUpSphere() {
+  if (powerUpSphere) {
+    scene.remove(powerUpSphere);
+  }
+  
+  // Create geometry for the power-up sphere
+  const powerUpGeometry = new THREE.IcosahedronGeometry(0.35 * gameScale, 2);
+  
+  // Create material with rainbow shader
+  const powerUpMaterial = new THREE.ShaderMaterial({
+    uniforms: {
+      time: { value: 0 }
+    },
+    vertexShader: `
+      varying vec2 vUv;
+      void main() {
+        vUv = uv;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }
+    `,
+    fragmentShader: `
+      uniform float time;
+      varying vec2 vUv;
+      
+      vec3 rainbow(float t) {
+        // Vibrant rainbow color mapping
+        vec3 color = vec3(0.0);
+        float r = sin(t * 6.28318) * 0.5 + 0.5;
+        float g = sin(t * 6.28318 + 2.0944) * 0.5 + 0.5;
+        float b = sin(t * 6.28318 + 4.1888) * 0.5 + 0.5;
+        return vec3(r, g, b);
+      }
+      
+      void main() {
+        // Create pulsing rainbow effect
+        vec2 pos = vUv;
+        float d = length(pos - vec2(0.5, 0.5));
+        vec3 color = rainbow(d * 3.0 + time * 2.0);
+        
+        // Add a glow effect
+        float glow = 0.5 * (1.0 + sin(time * 3.0));
+        color = mix(color, vec3(1.0), glow * 0.3);
+        
+        gl_FragColor = vec4(color, 1.0);
+      }
+    `
+  });
+  
+  // Create the power-up sphere mesh
+  powerUpSphere = new THREE.Mesh(powerUpGeometry, powerUpMaterial);
+  
+  // Position the power-up at a random angle at the spawn radius
+  const angle = Math.random() * Math.PI * 2;
+  powerUpSphere.position.x = Math.cos(angle) * spawnRadius;
+  powerUpSphere.position.y = Math.sin(angle) * spawnRadius;
+  
+  // Set the power-up velocity toward the center
+  powerUpSphere.userData.velocity = new THREE.Vector3(
+    -powerUpSphere.position.x,
+    -powerUpSphere.position.y,
+    0
+  )
+    .normalize()
+    .multiplyScalar(cubeSpeed * 0.8); // Slightly slower than cubes
+  
+  // Set rotation speed
+  powerUpSphere.userData.rotationSpeed = new THREE.Vector3(
+    Math.random() * 0.03 - 0.015,
+    Math.random() * 0.03 - 0.015,
+    Math.random() * 0.03 - 0.015
+  );
+  
+  // Add the power-up to the scene
+  scene.add(powerUpSphere);
+}
+
+// Update the power-up sphere
+function updatePowerUpSphere() {
+  if (!powerUpSphere) return;
+  
+  // Update position
+  powerUpSphere.position.add(powerUpSphere.userData.velocity);
+  
+  // Update rotation
+  powerUpSphere.rotation.x += powerUpSphere.userData.rotationSpeed.x;
+  powerUpSphere.rotation.y += powerUpSphere.userData.rotationSpeed.y;
+  powerUpSphere.rotation.z += powerUpSphere.userData.rotationSpeed.z;
+  
+  // Update shader time uniform
+  if (powerUpSphere.material && powerUpSphere.material.uniforms) {
+    powerUpSphere.material.uniforms.time.value += 0.01;
+  }
+  
+  // Check for collision with paddles
+  checkPowerUpPaddleCollisions();
+  
+  // Check for collision with the center sphere
+  if (sphere && powerUpSphere && sphere.position && powerUpSphere.position) {
+    if (powerUpSphere.position.distanceTo(sphere.position) < (0.25 + 0.35) * gameScale) {
+      // Handle power-up collision
+      activatePowerUp();
+      return; // Exit early since powerUpSphere is now null
+    }
+  }
+  
+  // Remove if it goes too far
+  if (powerUpSphere && powerUpSphere.position) {
+    if (powerUpSphere.position.length() > spawnRadius * 1.5) {
+      scene.remove(powerUpSphere);
+      powerUpSphere = null;
+    }
+  }
+}
+
+// Check for collisions between power-up sphere and paddles
+function checkPowerUpPaddleCollisions() {
+  if (!powerUpSphere || !paddleGroup) return;
+  
+  try {
+    for (let i = 0; i < paddles.length; i++) {
+      const paddle = paddles[i];
+      if (!paddle || !paddle.position) continue;
+      
+      const paddleWorldPosition = new THREE.Vector3();
+      paddle.getWorldPosition(paddleWorldPosition);
+      
+      const paddleSize = new THREE.Vector3(0.3, 1, 0.5).multiplyScalar(gameScale);
+      const powerUpSize = 0.35 * gameScale;
+      const collisionDistance = (paddleSize.y / 2 + powerUpSize) * 0.9;
+      
+      if (powerUpSphere && powerUpSphere.position && 
+          powerUpSphere.position.distanceTo(paddleWorldPosition) < collisionDistance) {
+        // Calculate reflection direction
+        const normal = paddleWorldPosition
+          .clone()
+          .sub(sphere ? sphere.position : new THREE.Vector3())
+          .normalize();
+        
+        // Reflect velocity
+        if (powerUpSphere.userData && powerUpSphere.userData.velocity) {
+          powerUpSphere.userData.velocity.reflect(normal);
+          
+          // Apply minimum deflection angle
+          const minDeflectionAngle = Math.PI / 6;
+          const deflectionAngle = Math.acos(
+            powerUpSphere.userData.velocity.dot(normal) / powerUpSphere.userData.velocity.length()
+          );
+          
+          if (deflectionAngle < minDeflectionAngle) {
+            const rotationAxis = new THREE.Vector3()
+              .crossVectors(normal, powerUpSphere.userData.velocity)
+              .normalize();
+            powerUpSphere.userData.velocity.applyAxisAngle(
+              rotationAxis,
+              minDeflectionAngle - deflectionAngle
+            );
+          }
+          
+          // Add some push to prevent sticking
+          const pushDistance = 0.1 * gameScale;
+          powerUpSphere.position.add(normal.clone().multiplyScalar(pushDistance));
+          
+          // Speed up slightly
+          powerUpSphere.userData.velocity.multiplyScalar(1.05);
+          
+          // Create a visual effect to indicate the bounce
+          createBounceEffect(powerUpSphere.position.clone());
+        }
+        
+        break;
+      }
+    }
+  } catch (error) {
+    console.error("Error in power-up paddle collision:", error);
+    // Clean up if there's an error
+    if (powerUpSphere) {
+      scene.remove(powerUpSphere);
+      powerUpSphere = null;
+    }
+  }
+}
+
+// Create a visual effect for the bounce
+function createBounceEffect(position) {
+  // Create a small burst effect
+  const effectGeometry = new THREE.SphereGeometry(0.2 * gameScale, 8, 8);
+  const effectMaterial = new THREE.MeshBasicMaterial({
+    color: 0xffffff,
+    transparent: true,
+    opacity: 0.7
+  });
+  
+  const effect = new THREE.Mesh(effectGeometry, effectMaterial);
+  effect.position.copy(position);
+  scene.add(effect);
+  
+  // Animate the effect
+  let scale = 0.1;
+  const expandEffect = setInterval(() => {
+    scale += 0.2;
+    effect.scale.set(scale, scale, scale);
+    effectMaterial.opacity = Math.max(0, 0.7 - scale * 0.3);
+    
+    if (scale >= 2) {
+      clearInterval(expandEffect);
+      scene.remove(effect);
+    }
+  }, 30);
+}
+
+// Activate the power-up effect
+function activatePowerUp() {
+  // Regenerate all paddles
+  if (paddleGroup) {
+    scene.remove(paddleGroup);
+  }
+  createPaddles();
+  
+  // Create a visual effect
+  createPowerUpEffect();
+  
+  // Remove the power-up sphere
+  if (powerUpSphere) {
+    scene.remove(powerUpSphere);
+    powerUpSphere = null;
+  }
+  
+  // Play a sound effect (if we had sound)
+  // playPowerUpSound();
+}
+
+// Create visual effect for power-up activation
+function createPowerUpEffect() {
+  // Create a pulsing light effect at the center
+  const effectGeometry = new THREE.SphereGeometry(1.5 * gameScale, 32, 32);
+  const effectMaterial = new THREE.MeshBasicMaterial({
+    color: 0xffffff,
+    transparent: true,
+    opacity: 0.7
+  });
+  
+  const effect = new THREE.Mesh(effectGeometry, effectMaterial);
+  scene.add(effect);
+  
+  // Animate the effect
+  let scale = 0.1;
+  const expandEffect = setInterval(() => {
+    scale += 0.1;
+    effect.scale.set(scale, scale, scale);
+    effectMaterial.opacity = Math.max(0, 0.7 - scale * 0.2);
+    
+    if (scale >= 3) {
+      clearInterval(expandEffect);
+      scene.remove(effect);
+    }
+  }, 50);
+}
