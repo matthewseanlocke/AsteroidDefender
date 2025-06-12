@@ -45,6 +45,10 @@ let renderer = new THREE.WebGLRenderer();
 renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(renderer.domElement);
 
+// Global variables for paddles
+let paddleGroup = new THREE.Group();
+let paddles = [];
+
 function generateAsteroidLogo() {
   const asteroidLogoData = [
     [0,1,1,0,0, 1,1,1,1,0, 1,1,1,1,1,0, 1,1,1,1,0, 1,1,1,1,0, 0,1,1,0,0, 0,1,0, 1,1,1,1],
@@ -100,10 +104,7 @@ sphere.userData.rotationSpeed = new THREE.Vector3(0.01, 0.015, 0.005);
 const colors = [0xff0000, 0x00ff00, 0x0000ff, 0xffff00, 0xff00ff, 0x00ffff];
 
 // Create paddles
-let paddleGroup = new THREE.Group();
-let paddles = [];
-
-function createPaddles() {
+function createPaddles(withAnimation = false) {
   if (paddleGroup) {
     scene.remove(paddleGroup);
   }
@@ -134,8 +135,39 @@ function createPaddles() {
     paddle.add(edges);
 
     const angle = (i * Math.PI) / 3;
-    paddle.position.x = Math.cos(angle) * paddleOrbitRadius * gameScale;
-    paddle.position.y = Math.sin(angle) * paddleOrbitRadius * gameScale;
+    
+    // Calculate exact target position - used for both animated and non-animated
+    const targetX = Math.cos(angle) * paddleOrbitRadius * gameScale;
+    const targetY = Math.sin(angle) * paddleOrbitRadius * gameScale;
+    
+    if (withAnimation) {
+      // Start position further away from center for animation
+      const startDistance = spawnRadius * 1.2;
+      paddle.position.x = Math.cos(angle) * startDistance;
+      paddle.position.y = Math.sin(angle) * startDistance;
+      
+      // Store target position for animation - using the exact calculated values
+      paddle.userData.targetX = targetX;
+      paddle.userData.targetY = targetY;
+      
+      // Initial velocity pointing toward target (very small for slower start)
+      const dirX = targetX - paddle.position.x;
+      const dirY = targetY - paddle.position.y;
+      const dirLength = Math.sqrt(dirX * dirX + dirY * dirY);
+      
+      paddle.userData.velocity = new THREE.Vector2(
+        dirX / dirLength * 0.02, // Very gentle initial velocity
+        dirY / dirLength * 0.02
+      );
+      
+      paddle.userData.animating = true;
+      paddle.userData.animationTime = 0;
+    } else {
+      // Regular positioning without animation - using the exact calculated values
+      paddle.position.x = targetX;
+      paddle.position.y = targetY;
+    }
+    
     paddle.rotation.z = angle;
     paddle.userData.colorIndex = i;
     paddleGroup.add(paddle);
@@ -466,6 +498,13 @@ function gameLoop() {
 
     if (currentState === GameState.PLAYING && !isGameOver) {
       if (paddleGroup) {
+        // Update paddle animations if needed
+        try {
+          updatePaddleAnimations();
+        } catch (error) {
+          console.error("Error updating paddle animations:", error);
+        }
+        
         paddleGroup.rotation.z += rotationSpeed;
       }
 
@@ -608,9 +647,13 @@ function startGame() {
 
   sphere.position.set(0, 0, 0);
 
-  createPaddles();
+  // Create paddles with animation
+  createPaddles(true);
 
-  startSpawningCubes();
+  // Wait longer before spawning cubes to allow for slower paddle animation
+  setTimeout(() => {
+    startSpawningCubes();
+  }, 3000); // Increased from 1200ms to 3000ms for the slower animation
 }
 
 function animateLogo() {
@@ -1327,4 +1370,86 @@ function createPowerUpEffect() {
       scene.remove(effect);
     }
   }, 50);
+}
+
+// Update paddle animations
+function updatePaddleAnimations() {
+  if (!paddles || paddles.length === 0) return false;
+  
+  let allSettled = true;
+  
+  paddles.forEach(paddle => {
+    if (!paddle || !paddle.userData || !paddle.userData.animating) return;
+    
+    // Spring physics parameters - adjusted for slower, more controlled motion
+    const springStrength = 0.02; // Gentle approach
+    const damping = 0.95; // High stability
+    
+    // Calculate spring force
+    const dx = paddle.userData.targetX - paddle.position.x;
+    const dy = paddle.userData.targetY - paddle.position.y;
+    
+    // Apply spring force to velocity
+    if (!paddle.userData.velocity) {
+      paddle.userData.velocity = new THREE.Vector2(0, 0);
+    }
+    
+    paddle.userData.velocity.x += dx * springStrength;
+    paddle.userData.velocity.y += dy * springStrength;
+    
+    // Apply damping
+    paddle.userData.velocity.x *= damping;
+    paddle.userData.velocity.y *= damping;
+    
+    // Update position
+    paddle.position.x += paddle.userData.velocity.x;
+    paddle.position.y += paddle.userData.velocity.y;
+    
+    // Prevent sphere overlap by ensuring minimum distance from center
+    const distanceFromCenter = Math.sqrt(
+      paddle.position.x * paddle.position.x + 
+      paddle.position.y * paddle.position.y
+    );
+    
+    const minDistanceFromCenter = paddleOrbitRadius * 0.7 * gameScale;
+    
+    if (distanceFromCenter < minDistanceFromCenter) {
+      // Normalize and scale the position vector to maintain minimum distance
+      const scale = minDistanceFromCenter / distanceFromCenter;
+      paddle.position.x *= scale;
+      paddle.position.y *= scale;
+      
+      // Reduce velocity to prevent bouncing back too much
+      paddle.userData.velocity.x *= 0.5;
+      paddle.userData.velocity.y *= 0.5;
+    }
+    
+    // Check if settled - using more strict criteria
+    const distanceToTarget = Math.sqrt(dx * dx + dy * dy);
+    const speedSquared = paddle.userData.velocity.x * paddle.userData.velocity.x + 
+                         paddle.userData.velocity.y * paddle.userData.velocity.y;
+    
+    if (distanceToTarget < 0.005 * gameScale && speedSquared < 0.00005) {
+      paddle.userData.animating = false;
+      // Ensure exact final position
+      paddle.position.x = paddle.userData.targetX;
+      paddle.position.y = paddle.userData.targetY;
+    } else {
+      allSettled = false;
+    }
+    
+    // Force settle after a maximum time
+    if (paddle.userData.animationTime === undefined) {
+      paddle.userData.animationTime = 0;
+    } else {
+      paddle.userData.animationTime += 0.016;
+      if (paddle.userData.animationTime > 6.0) {
+        paddle.userData.animating = false;
+        paddle.position.x = paddle.userData.targetX;
+        paddle.position.y = paddle.userData.targetY;
+      }
+    }
+  });
+  
+  return allSettled;
 }
