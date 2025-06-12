@@ -748,7 +748,7 @@ function startGame() {
       // Only start spawning cubes after countdown is complete
       startSpawningCubes();
     });
-  }, 3000); // Wait for paddle animation to complete
+  }, 1000); // Reduced wait for paddle animation
 }
 
 function animateLogo() {
