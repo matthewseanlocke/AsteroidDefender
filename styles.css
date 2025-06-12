@@ -18,6 +18,7 @@ canvas {
   color: white;
   font-family: Arial, sans-serif;
   background-color: rgba(0, 0, 0, 0.91);
+  z-index: 1000;
 }
 
 #logo {

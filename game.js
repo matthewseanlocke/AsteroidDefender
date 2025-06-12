@@ -390,6 +390,9 @@ function checkCollisions() {
         displayHighScore();
         flashInsertCoin();
         animateLogo();
+        // Hide score and stored power-ups on game over
+        document.getElementById("scoreDisplay").style.display = "none";
+        document.getElementById('storedPowerUps').style.display = "none";
       }, 5000);
     }
 
