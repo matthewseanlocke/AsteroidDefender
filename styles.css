@@ -217,3 +217,65 @@ canvas {
   }
 }
 
+#storedPowerUps {
+  position: absolute;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 10px;
+  z-index: 100;
+}
+
+.stored-power-up {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: transform 0.2s ease;
+  box-shadow: 0 0 10px rgba(255, 255, 255, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: rainbowPulse 2s infinite;
+}
+
+.stored-power-up:hover {
+  transform: scale(1.2);
+}
+
+.stored-power-up:active {
+  transform: scale(0.9);
+}
+
+@keyframes rainbowPulse {
+  0% {
+    background-color: #ff0000;
+    box-shadow: 0 0 15px #ff0000;
+  }
+  16.7% {
+    background-color: #ff8800;
+    box-shadow: 0 0 15px #ff8800;
+  }
+  33.3% {
+    background-color: #ffff00;
+    box-shadow: 0 0 15px #ffff00;
+  }
+  50% {
+    background-color: #00ff00;
+    box-shadow: 0 0 15px #00ff00;
+  }
+  66.7% {
+    background-color: #0088ff;
+    box-shadow: 0 0 15px #0088ff;
+  }
+  83.3% {
+    background-color: #8800ff;
+    box-shadow: 0 0 15px #8800ff;
+  }
+  100% {
+    background-color: #ff0000;
+    box-shadow: 0 0 15px #ff0000;
+  }
+}
+

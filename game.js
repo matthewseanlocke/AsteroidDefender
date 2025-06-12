@@ -19,6 +19,11 @@ let powerUpSphere = null;
 let nextPowerUpThreshold = 10; // First power-up at 10 points
 const powerUpInterval = 10; // New power-up every 10 points
 
+// Stored power-ups
+let storedPowerUps = []; // Array to store power-ups
+const maxStoredPowerUps = 3; // Maximum number of stored power-ups
+let isLaunchingPowerUp = false; // Flag to track if a power-up is being launched
+
 // SETTINGS
 const gameScale = 0.25;
 const cubeSpeed = 0.02 * Math.sqrt(gameScale);
@@ -562,6 +567,7 @@ function init() {
   startText.style.opacity = "1";
   document.getElementById("scoreDisplay").style.display = "none";
   document.getElementById("highScore").style.display = "none"; // Hide high score on intro screen
+  document.getElementById('storedPowerUps').style.display = "none"; // Hide stored power-ups
   animateLogo();
   flashInsertCoin();
 }
@@ -585,6 +591,10 @@ function startGame() {
     scene.remove(powerUpSphere);
     powerUpSphere = null;
   }
+  
+  // Reset stored power-ups
+  resetStoredPowerUps();
+  document.getElementById('storedPowerUps').style.display = "flex";
 
   cubes.forEach((cube) => scene.remove(cube));
   cubes.length = 0;
@@ -741,14 +751,14 @@ function createPowerUpSphere() {
   powerUpSphere.position.x = Math.cos(angle) * spawnRadius;
   powerUpSphere.position.y = Math.sin(angle) * spawnRadius;
   
-  // Set the power-up velocity toward the center
+  // Set the power-up velocity toward the center, faster than regular cubes
   powerUpSphere.userData.velocity = new THREE.Vector3(
     -powerUpSphere.position.x,
     -powerUpSphere.position.y,
     0
   )
     .normalize()
-    .multiplyScalar(cubeSpeed * 0.8); // Slightly slower than cubes
+    .multiplyScalar(cubeSpeed * 1.8); // Much faster than regular cubes
   
   // Set rotation speed
   powerUpSphere.userData.rotationSpeed = new THREE.Vector3(
@@ -897,6 +907,13 @@ function createBounceEffect(position) {
 
 // Activate the power-up effect
 function activatePowerUp() {
+  // Check if all paddles exist
+  if (paddles.length >= 6) {
+    // Store the power-up instead of using it immediately
+    storePowerUp();
+    return;
+  }
+
   // Regenerate all paddles
   if (paddleGroup) {
     scene.remove(paddleGroup);
@@ -914,6 +931,254 @@ function activatePowerUp() {
   
   // Play a sound effect (if we had sound)
   // playPowerUpSound();
+}
+
+// Store a power-up for later use
+function storePowerUp() {
+  if (storedPowerUps.length >= maxStoredPowerUps) {
+    // If storage is full, just activate the power-up
+    if (paddleGroup) {
+      scene.remove(paddleGroup);
+    }
+    createPaddles();
+    createPowerUpEffect();
+    
+    if (powerUpSphere) {
+      scene.remove(powerUpSphere);
+      powerUpSphere = null;
+    }
+    return;
+  }
+  
+  // Add to stored power-ups
+  storedPowerUps.push({
+    id: Date.now() // Simple unique ID
+  });
+  
+  // Update the display
+  updateStoredPowerUpsDisplay();
+  
+  // Create a collection effect
+  createCollectionEffect();
+  
+  // Remove the power-up sphere
+  if (powerUpSphere) {
+    scene.remove(powerUpSphere);
+    powerUpSphere = null;
+  }
+}
+
+// Create a collection effect when storing a power-up
+function createCollectionEffect() {
+  if (!powerUpSphere) return;
+  
+  // Create a trail from current position to bottom of screen
+  const startPos = powerUpSphere.position.clone();
+  const endPos = new THREE.Vector3(0, -3 * gameScale, 0);
+  
+  // Create particles along the path
+  const numParticles = 15;
+  const particles = [];
+  
+  for (let i = 0; i < numParticles; i++) {
+    const particle = document.createElement('div');
+    particle.className = 'collection-particle';
+    particle.style.position = 'absolute';
+    particle.style.width = '10px';
+    particle.style.height = '10px';
+    particle.style.borderRadius = '50%';
+    particle.style.backgroundColor = 'white';
+    particle.style.boxShadow = '0 0 10px white';
+    particle.style.zIndex = '90';
+    
+    // Set initial position by projecting 3D position to screen
+    const t = i / numParticles;
+    const pos = startPos.clone().lerp(endPos, t);
+    const vector = pos.clone().project(camera);
+    
+    const x = (vector.x * 0.5 + 0.5) * window.innerWidth;
+    const y = (-(vector.y * 0.5) + 0.5) * window.innerHeight;
+    
+    particle.style.left = `${x}px`;
+    particle.style.top = `${y}px`;
+    
+    // Add to document
+    document.body.appendChild(particle);
+    particles.push(particle);
+    
+    // Animate with delay based on position
+    setTimeout(() => {
+      particle.style.transition = 'opacity 0.5s ease';
+      particle.style.opacity = '0';
+      
+      // Remove after animation
+      setTimeout(() => {
+        if (document.body.contains(particle)) {
+          document.body.removeChild(particle);
+        }
+      }, 500);
+    }, t * 500);
+  }
+}
+
+// Update the display of stored power-ups
+function updateStoredPowerUpsDisplay() {
+  const container = document.getElementById('storedPowerUps');
+  if (!container) return;
+  
+  // Clear the container
+  container.innerHTML = '';
+  
+  // Add each stored power-up
+  storedPowerUps.forEach((powerUp, index) => {
+    const powerUpElement = document.createElement('div');
+    powerUpElement.className = 'stored-power-up';
+    powerUpElement.dataset.id = powerUp.id;
+    powerUpElement.title = 'Click to launch power-up';
+    
+    // Create the inner content (can be an icon or text)
+    powerUpElement.innerHTML = '<span style="color: white; font-weight: bold;">+</span>';
+    
+    // Add click event to launch this power-up
+    powerUpElement.addEventListener('click', () => {
+      if (currentState === GameState.PLAYING && !isGameOver && !isLaunchingPowerUp) {
+        launchStoredPowerUp(index);
+      }
+    });
+    
+    container.appendChild(powerUpElement);
+  });
+}
+
+// Launch a stored power-up
+function launchStoredPowerUp(index) {
+  if (index >= storedPowerUps.length || isLaunchingPowerUp) return;
+  
+  // Remove from stored array
+  const powerUp = storedPowerUps.splice(index, 1)[0];
+  
+  // Update display
+  updateStoredPowerUpsDisplay();
+  
+  // Set launching flag
+  isLaunchingPowerUp = true;
+  
+  // Create a power-up sphere from the edge of the screen
+  if (powerUpSphere) {
+    scene.remove(powerUpSphere);
+  }
+  
+  // Create geometry for the power-up sphere
+  const powerUpGeometry = new THREE.IcosahedronGeometry(0.35 * gameScale, 2);
+  
+  // Create material with rainbow shader
+  const powerUpMaterial = new THREE.ShaderMaterial({
+    uniforms: {
+      time: { value: 0 }
+    },
+    vertexShader: `
+      varying vec2 vUv;
+      void main() {
+        vUv = uv;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }
+    `,
+    fragmentShader: `
+      uniform float time;
+      varying vec2 vUv;
+      
+      vec3 rainbow(float t) {
+        // Vibrant rainbow color mapping
+        vec3 color = vec3(0.0);
+        float r = sin(t * 6.28318) * 0.5 + 0.5;
+        float g = sin(t * 6.28318 + 2.0944) * 0.5 + 0.5;
+        float b = sin(t * 6.28318 + 4.1888) * 0.5 + 0.5;
+        return vec3(r, g, b);
+      }
+      
+      void main() {
+        // Create pulsing rainbow effect
+        vec2 pos = vUv;
+        float d = length(pos - vec2(0.5, 0.5));
+        vec3 color = rainbow(d * 3.0 + time * 2.0);
+        
+        // Add a glow effect
+        float glow = 0.5 * (1.0 + sin(time * 3.0));
+        color = mix(color, vec3(1.0), glow * 0.3);
+        
+        gl_FragColor = vec4(color, 1.0);
+      }
+    `
+  });
+  
+  // Create the power-up sphere mesh
+  powerUpSphere = new THREE.Mesh(powerUpGeometry, powerUpMaterial);
+  
+  // Position the power-up at a random angle at the spawn radius (edge of screen)
+  const angle = Math.random() * Math.PI * 2;
+  powerUpSphere.position.x = Math.cos(angle) * spawnRadius;
+  powerUpSphere.position.y = Math.sin(angle) * spawnRadius;
+  
+  // Set the power-up velocity toward the center
+  powerUpSphere.userData.velocity = new THREE.Vector3(
+    -powerUpSphere.position.x,
+    -powerUpSphere.position.y,
+    0
+  )
+    .normalize()
+    .multiplyScalar(cubeSpeed * 2.0); // Even faster than regular power-ups
+  
+  // Set rotation speed
+  powerUpSphere.userData.rotationSpeed = new THREE.Vector3(
+    Math.random() * 0.03 - 0.015,
+    Math.random() * 0.03 - 0.015,
+    Math.random() * 0.03 - 0.015
+  );
+  
+  // Add the power-up to the scene
+  scene.add(powerUpSphere);
+  
+  // Create a visual effect when launching
+  createLaunchEffect(powerUpSphere.position.clone());
+  
+  // Reset launching flag after a short delay
+  setTimeout(() => {
+    isLaunchingPowerUp = false;
+  }, 1000);
+}
+
+// Create a visual effect when launching a stored power-up
+function createLaunchEffect(position) {
+  // Create a burst effect
+  const effectGeometry = new THREE.SphereGeometry(0.2 * gameScale, 8, 8);
+  const effectMaterial = new THREE.MeshBasicMaterial({
+    color: 0xffffff,
+    transparent: true,
+    opacity: 0.7
+  });
+  
+  const effect = new THREE.Mesh(effectGeometry, effectMaterial);
+  effect.position.copy(position);
+  scene.add(effect);
+  
+  // Animate the effect
+  let scale = 0.1;
+  const expandEffect = setInterval(() => {
+    scale += 0.3;
+    effect.scale.set(scale, scale, scale);
+    effectMaterial.opacity = Math.max(0, 0.7 - scale * 0.3);
+    
+    if (scale >= 3) {
+      clearInterval(expandEffect);
+      scene.remove(effect);
+    }
+  }, 30);
+}
+
+// Reset the stored power-ups when starting a new game
+function resetStoredPowerUps() {
+  storedPowerUps = [];
+  updateStoredPowerUpsDisplay();
 }
 
 // Create visual effect for power-up activation
