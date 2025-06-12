@@ -248,7 +248,7 @@ const cubes = [];
 
 // Function to create a new cube
 function createCube() {
-  if (cubes.length >= 20) return;
+  if (cubes.length >= 20 || currentState !== GameState.PLAYING || isGameOver) return;
 
   const cubeSize =
     (Math.random() * (cubeMaxSize - cubeMinSize) + cubeMinSize) * gameScale;
@@ -292,13 +292,35 @@ function createCube() {
   cubes.push(cube);
 }
 
+function clearAllCubes() {
+  // Remove all cubes from the scene and array
+  for (let i = cubes.length - 1; i >= 0; i--) {
+    if (cubes[i]) {
+      scene.remove(cubes[i]);
+    }
+  }
+  cubes.length = 0;
+}
+
 let cubeSpawnInterval;
 const spawnInterval = 3000;
 
 function startSpawningCubes() {
+  // Clear any existing interval to prevent duplicates
   if (cubeSpawnInterval) {
     clearInterval(cubeSpawnInterval);
+    cubeSpawnInterval = null;
   }
+  
+  // Make sure we're in playing state
+  if (currentState !== GameState.PLAYING || isGameOver) {
+    return;
+  }
+  
+  // Create the first cube immediately
+  createCube();
+  
+  // Set up the interval for subsequent cubes
   cubeSpawnInterval = setInterval(createCube, spawnInterval);
 }
 
@@ -310,10 +332,15 @@ function stopSpawningCubes() {
 }
 
 function checkCollisions() {
+  // Skip collision detection if game is not in playing state
+  if (currentState !== GameState.PLAYING || isGameOver) return;
+  
   const sphereRadius = 0.25 * gameScale;
 
   for (let i = cubes.length - 1; i >= 0; i--) {
     const cube = cubes[i];
+    if (!cube) continue;
+    
     const cubeSize = cube.geometry.parameters.width;
     const cubeHalfSize = cubeSize / 2;
     const collisionDistance = sphereRadius + cubeHalfSize;
@@ -342,6 +369,9 @@ function checkCollisions() {
 
       sphere = null;
       isGameOver = true;
+      
+      // Stop spawning cubes immediately
+      stopSpawningCubes();
 
       // Update high score if current score is higher
       if (currentScore > highScore) {
@@ -611,7 +641,68 @@ function init() {
   flashInsertCoin();
 }
 
+// Run the countdown animation
+function runCountdown(callback) {
+  const countdownContainer = document.getElementById('countdownContainer');
+  const countdownDisplay = document.getElementById('countdownDisplay');
+  
+  // Show countdown container
+  countdownContainer.style.display = 'flex';
+  
+  // Set initial number
+  countdownDisplay.textContent = '3';
+  countdownDisplay.classList.remove('go');
+  
+  // Function to update countdown
+  const updateCountdown = (number) => {
+    // Reset animation classes
+    countdownDisplay.classList.remove('active', 'fade-out');
+    
+    // Force reflow to restart animation
+    void countdownDisplay.offsetWidth;
+    
+    // Update text
+    if (number === 0) {
+      countdownDisplay.textContent = 'GO!';
+      countdownDisplay.classList.add('go');
+    } else {
+      countdownDisplay.textContent = number.toString();
+    }
+    
+    // Start animation
+    countdownDisplay.classList.add('active');
+    
+    // Start fade out after a delay
+    setTimeout(() => {
+      countdownDisplay.classList.add('fade-out');
+    }, 600);
+  };
+  
+  // Run countdown sequence
+  updateCountdown(3);
+  
+  setTimeout(() => updateCountdown(2), 1000);
+  setTimeout(() => updateCountdown(1), 2000);
+  setTimeout(() => {
+    updateCountdown(0);
+    
+    // Hide countdown and call callback after GO! animation
+    setTimeout(() => {
+      countdownContainer.style.display = 'none';
+      if (callback && typeof callback === 'function') {
+        callback();
+      }
+    }, 1000);
+  }, 3000);
+}
+
 function startGame() {
+  // Stop any existing cube spawning first
+  stopSpawningCubes();
+  
+  // Clear all existing cubes
+  clearAllCubes();
+  
   currentState = GameState.PLAYING;
   isGameOver = false;
   overlay.style.display = "none";
@@ -635,9 +726,6 @@ function startGame() {
   resetStoredPowerUps();
   document.getElementById('storedPowerUps').style.display = "flex";
 
-  cubes.forEach((cube) => scene.remove(cube));
-  cubes.length = 0;
-
   if (!sphere) {
     sphere = new THREE.Mesh(sphereGeometry, sphereMaterial);
     sphere.add(wireframe);
@@ -650,10 +738,14 @@ function startGame() {
   // Create paddles with animation
   createPaddles(true);
 
-  // Wait longer before spawning cubes to allow for slower paddle animation
+  // Start countdown after paddles finish animating
   setTimeout(() => {
-    startSpawningCubes();
-  }, 3000); // Increased from 1200ms to 3000ms for the slower animation
+    // Start the countdown animation
+    runCountdown(() => {
+      // Only start spawning cubes after countdown is complete
+      startSpawningCubes();
+    });
+  }, 3000); // Wait for paddle animation to complete
 }
 
 function animateLogo() {
@@ -681,7 +773,11 @@ function handleVisibilityChange() {
   } else {
     isPaused = false;
     if (currentState === GameState.PLAYING && !isGameOver) {
-      startSpawningCubes();
+      // Only restart cube spawning if the game is actively playing
+      // and the countdown has already completed
+      if (document.getElementById('countdownContainer').style.display === 'none') {
+        startSpawningCubes();
+      }
     }
   }
 }
