@@ -409,32 +409,36 @@ function checkCollisions() {
       const collisionDistance = (paddleSize.y / 2 + cubeSize / 2) * 0.9;
 
       if (cube.position.distanceTo(paddleWorldPosition) < collisionDistance) {
-        const normal = paddleWorldPosition
-          .clone()
-          .sub(sphere ? sphere.position : new THREE.Vector3())
+        // Get direction from center of paddle to center of sphere (where the player is)
+        const centerDirection = sphere ? 
+          new THREE.Vector3().subVectors(sphere.position, paddleWorldPosition).normalize() :
+          new THREE.Vector3(0, 0, 0);
+        
+        // Get hit position on paddle (relative to paddle center)
+        const hitOffset = new THREE.Vector3().subVectors(cube.position, paddleWorldPosition);
+        
+        // Project hit offset onto paddle's "surface" plane
+        const paddleNormal = centerDirection.clone();
+        const paddleTangent = new THREE.Vector3(-paddleNormal.y, paddleNormal.x, 0).normalize();
+        
+        // Calculate how far from center the hit occurred (-1 to 1, where 0 is center)
+        const hitFactor = paddleTangent.dot(hitOffset.normalize()) * 1.5; // Amplify the effect
+        
+        // Create reflection direction based on hit position
+        // Center hits go straight back, edge hits go at an angle
+        const reflectionDir = new THREE.Vector3()
+          .addScaledVector(centerDirection, -0.8) // Mostly toward center
+          .addScaledVector(paddleTangent, hitFactor) // Add angle based on hit position
           .normalize();
-        cube.userData.velocity.reflect(normal);
-
-        const minDeflectionAngle = Math.PI / 6;
-        const deflectionAngle = Math.acos(
-          cube.userData.velocity.dot(normal) / cube.userData.velocity.length()
-        );
-
-        if (deflectionAngle < minDeflectionAngle) {
-          const rotationAxis = new THREE.Vector3()
-            .crossVectors(normal, cube.userData.velocity)
-            .normalize();
-          cube.userData.velocity.applyAxisAngle(
-            rotationAxis,
-            minDeflectionAngle - deflectionAngle
-          );
-        }
-
+        
+        // Set the cube's velocity based on this reflection
+        const speed = cube.userData.velocity.length();
+        cube.userData.velocity.copy(reflectionDir).multiplyScalar(speed * 1.05);
+        
+        // Add a small push to prevent sticking
         const pushDistance = 0.05 * gameScale;
-        cube.position.add(normal.multiplyScalar(pushDistance));
-
-        cube.userData.velocity.multiplyScalar(1.05);
-
+        cube.position.add(reflectionDir.clone().multiplyScalar(pushDistance));
+        
         // Only add points if the paddle color matches the cube color
         if (cube.userData.colorIndex === paddle.userData.colorIndex) {
           // Update score
