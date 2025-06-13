@@ -362,6 +362,7 @@ function checkCollisions() {
 
       cube.userData.velocity.multiplyScalar(1.05);
       
+      playSphereDestructionEffect(sphere.position.clone());
       scene.remove(sphere);
       if (sphere.children.includes(wireframe)) {
         sphere.remove(wireframe);
@@ -1551,4 +1552,89 @@ function updatePaddleAnimations() {
   });
   
   return allSettled;
+}
+
+function playSphereDestructionEffect(position) {
+  // 1. Clone the sphere mesh for animation
+  if (!sphere) return;
+  const sphereClone = sphere.clone();
+  sphereClone.position.copy(position);
+  scene.add(sphereClone);
+
+  // 2. Animate scale up and fade out
+  let scale = 1;
+  let opacity = 1;
+  const material = sphereClone.material.clone();
+  material.transparent = true;
+  material.opacity = 1;
+  sphereClone.material = material;
+
+  // 3. Add a glow effect (using a second mesh with additive blending)
+  const glowMaterial = new THREE.MeshBasicMaterial({
+    color: 0xffffcc,
+    transparent: true,
+    opacity: 0.7,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false,
+  });
+  const glowMesh = new THREE.Mesh(sphereClone.geometry.clone(), glowMaterial);
+  glowMesh.position.copy(position);
+  scene.add(glowMesh);
+
+  // 4. Particle burst
+  const particles = [];
+  const particleCount = 18;
+  for (let i = 0; i < particleCount; i++) {
+    const particleGeo = new THREE.SphereGeometry(0.05 * gameScale, 6, 6);
+    const particleMat = new THREE.MeshBasicMaterial({
+      color: 0xffffcc,
+      transparent: true,
+      opacity: 1,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+    });
+    const particle = new THREE.Mesh(particleGeo, particleMat);
+    particle.position.copy(position);
+    // Give each particle a random direction
+    const angle = (i / particleCount) * Math.PI * 2;
+    const speed = 0.08 + Math.random() * 0.08;
+    particle.userData.velocity = new THREE.Vector3(
+      Math.cos(angle) * speed,
+      Math.sin(angle) * speed,
+      (Math.random() - 0.5) * speed
+    );
+    scene.add(particle);
+    particles.push(particle);
+  }
+
+  // 5. Animate everything
+  let animFrame;
+  let t = 0;
+  function animate() {
+    t += 0.04;
+    // Scale and fade sphere
+    scale += 0.12;
+    opacity -= 0.07;
+    sphereClone.scale.set(scale, scale, scale);
+    material.opacity = Math.max(0, opacity);
+    // Glow grows and fades
+    glowMesh.scale.set(scale * 1.7, scale * 1.7, scale * 1.7);
+    glowMaterial.opacity = Math.max(0, opacity * 0.7);
+    // Animate particles
+    particles.forEach(p => {
+      p.position.add(p.userData.velocity);
+      p.material.opacity -= 0.06;
+      if (p.material.opacity < 0) p.material.opacity = 0;
+    });
+    // Remove when done
+    if (opacity > 0) {
+      animFrame = requestAnimationFrame(animate);
+    } else {
+      scene.remove(sphereClone);
+      scene.remove(glowMesh);
+      particles.forEach(p => scene.remove(p));
+      cancelAnimationFrame(animFrame);
+    }
+  }
+  animate();
 }
