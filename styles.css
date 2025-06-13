@@ -355,3 +355,26 @@ canvas {
   text-shadow: 0 0 30px rgba(0, 255, 0, 0.8);
 }
 
+@media (orientation: portrait) {
+  #highScore {
+    font-size: clamp(28px, 7vw, 7vh);
+    padding: 0.1em 0.5em;
+    border-radius: 1em;
+    background: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin: 2vh auto;
+    box-shadow: none;
+  }
+  #highScore .fa-crown {
+    font-size: 1.2em;
+    margin-right: 0.3em;
+  }
+  #highScoreValue {
+    font-size: 1em;
+    font-weight: bold;
+    color: gold;
+  }
+}
+

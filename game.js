@@ -519,7 +519,19 @@ function gameLoop() {
   if (!isPaused) {
     // Update cube positions and rotations regardless of game state
     cubes.forEach((cube) => {
-      if (cube && cube.position && cube.userData) {
+      if (
+        cube &&
+        cube.position &&
+        cube.userData &&
+        cube.userData.velocity &&
+        typeof cube.userData.velocity.x === 'number' &&
+        typeof cube.userData.velocity.y === 'number' &&
+        typeof cube.userData.velocity.z === 'number' &&
+        cube.userData.rotationSpeed &&
+        typeof cube.userData.rotationSpeed.x === 'number' &&
+        typeof cube.userData.rotationSpeed.y === 'number' &&
+        typeof cube.userData.rotationSpeed.z === 'number'
+      ) {
         cube.position.add(cube.userData.velocity);
         cube.rotation.x += cube.userData.rotationSpeed.x;
         cube.rotation.y += cube.userData.rotationSpeed.y;
@@ -539,10 +551,18 @@ function gameLoop() {
           console.error("Error updating paddle animations:", error);
         }
         
-        paddleGroup.rotation.z += rotationSpeed;
+        if (paddleGroup && typeof paddleGroup.rotation === 'object' && 
+            typeof paddleGroup.rotation.z === 'number' && 
+            typeof rotationSpeed === 'number') {
+          paddleGroup.rotation.z += rotationSpeed;
+        }
       }
 
-      if (sphere && sphere.userData) {
+      if (sphere && sphere.userData && 
+          sphere.userData.rotationSpeed && 
+          typeof sphere.userData.rotationSpeed.x === 'number' &&
+          typeof sphere.userData.rotationSpeed.y === 'number' &&
+          typeof sphere.userData.rotationSpeed.z === 'number') {
         sphere.rotation.x += sphere.userData.rotationSpeed.x;
         sphere.rotation.y += sphere.userData.rotationSpeed.y;
         sphere.rotation.z += sphere.userData.rotationSpeed.z;
@@ -569,7 +589,15 @@ function gameLoop() {
     // Update exploding paddles when game is over, regardless of current state
     if (isGameOver) {
       paddles.forEach((paddle) => {
-        if (paddle && paddle.position && paddle.userData) {
+        if (paddle && paddle.position && paddle.userData && 
+            paddle.userData.velocity && 
+            typeof paddle.userData.velocity.x === 'number' &&
+            typeof paddle.userData.velocity.y === 'number' &&
+            typeof paddle.userData.velocity.z === 'number' &&
+            paddle.userData.rotationSpeed &&
+            typeof paddle.userData.rotationSpeed.x === 'number' &&
+            typeof paddle.userData.rotationSpeed.y === 'number' &&
+            typeof paddle.userData.rotationSpeed.z === 'number') {
           paddle.position.add(paddle.userData.velocity);
           paddle.rotation.x += paddle.userData.rotationSpeed.x;
           paddle.rotation.y += paddle.userData.rotationSpeed.y;
