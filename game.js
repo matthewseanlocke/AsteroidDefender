@@ -49,6 +49,21 @@ document.body.appendChild(renderer.domElement);
 let paddleGroup = new THREE.Group();
 let paddles = [];
 
+// Camera zoom settings
+let defaultZoom = 10 * gameScale;
+let portraitZoom = 14 * gameScale; // Increased from 3.5 to pull back camera
+let landscapeZoom = 7.0 * gameScale; // Increased from 1.5 to pull back camera
+let zoomStep = 0.5 * gameScale;
+let minZoom = 3 * gameScale;
+let maxZoom = 20 * gameScale;
+
+// Set initial camera position based on orientation
+if (window.innerWidth > window.innerHeight) {
+  camera.position.z = landscapeZoom;
+} else {
+  camera.position.z = portraitZoom;
+}
+
 function generateAsteroidLogo() {
   const asteroidLogoData = [
     [0,1,1,0,0, 1,1,1,1,0, 1,1,1,1,1,0, 1,1,1,1,0, 1,1,1,1,0, 0,1,1,0,0, 0,1,0, 1,1,1,1],
@@ -177,8 +192,6 @@ function createPaddles(withAnimation = false) {
 }
 
 createPaddles();
-
-camera.position.z = 10 * gameScale;
 
 // Rotation speed
 let rotationSpeed = 0;
@@ -651,13 +664,6 @@ function checkCubeCollisions() {
       }
     }
   }
-}
-
-function onWindowResize() {
-  camera.aspect = window.innerWidth / window.innerHeight;
-  camera.updateProjectionMatrix();
-  renderer.setSize(window.innerWidth, window.innerHeight);
-  createPaddles();
 }
 
 const overlay = document.getElementById("overlay");
@@ -1669,4 +1675,31 @@ function playSphereDestructionEffect(position) {
     }
   }
   animate();
+}
+
+// Apply orientation-specific zoom on resize/orientation change
+function applyOrientationZoom() {
+  if (window.innerWidth > window.innerHeight) {
+    // Landscape
+    camera.position.z = landscapeZoom;
+  } else {
+    // Portrait
+    camera.position.z = portraitZoom;
+  }
+}
+
+// Set initial camera position based on orientation
+if (window.innerWidth > window.innerHeight) {
+  camera.position.z = landscapeZoom;
+} else {
+  camera.position.z = portraitZoom;
+}
+
+// Modify existing onWindowResize function to include zoom adjustment
+function onWindowResize() {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  createPaddles();
+  applyOrientationZoom();
 }
