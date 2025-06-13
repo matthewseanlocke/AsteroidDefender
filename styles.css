@@ -157,22 +157,26 @@ canvas {
 
 #scoreDisplay {
   position: absolute;
-  top: 8vh;
-  left: 0;
-  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  left: 15vw;
   color: white;
-  font-size: clamp(48px, 10vw, 120px);
+  font-size: clamp(60px, 12vw, 140px);
   font-family: Arial, sans-serif;
   z-index: 100;
   text-shadow: 0 0 20px rgba(255, 255, 255, 0.8);
   display: none;
-  text-align: center;
+  text-align: left;
 }
 
 @media (orientation: portrait) {
   #scoreDisplay {
     top: 14vh;
-    font-size: clamp(48px, 18vw, 120px);
+    transform: none;
+    left: 0;
+    right: 0;
+    font-size: clamp(84px, 30vw, 180px);
+    text-align: center;
   }
 }
 
