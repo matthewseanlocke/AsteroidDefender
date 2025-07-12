@@ -15,9 +15,11 @@ let highScore = 0;
 let lastHitCube = null; // Track the last cube hit for collision tracking
 
 // Power-up system
-let powerUpSphere = null;
 let nextPowerUpThreshold = 10; // First power-up at 10 points
 const powerUpInterval = 10; // New power-up every 10 points
+
+// Change from single powerUpSphere to an array of power-up spheres
+let powerUpSpheres = [];
 
 // Stored power-ups
 let storedPowerUps = []; // Array to store power-ups
@@ -473,7 +475,7 @@ function checkCollisions() {
           currentScore += 1;
           
           // Check if we reached a power-up threshold
-          if (currentScore >= nextPowerUpThreshold && !powerUpSphere) {
+          if (currentScore >= nextPowerUpThreshold && powerUpSpheres.length === 0) {
             // Spawn a power-up
             createPowerUpSphere();
             // Set next threshold
@@ -575,46 +577,60 @@ function gameLoop() {
     checkCubeCollisions();
 
     // Update power-up sphere if it exists, regardless of game state
-    if (powerUpSphere) {
+    if (powerUpSpheres.length > 0) {
       try {
         // Continue moving the power-up sphere even when game is over
-        powerUpSphere.position.add(powerUpSphere.userData.velocity);
-        powerUpSphere.rotation.x += powerUpSphere.userData.rotationSpeed.x;
-        powerUpSphere.rotation.y += powerUpSphere.userData.rotationSpeed.y;
-        powerUpSphere.rotation.z += powerUpSphere.userData.rotationSpeed.z;
-        
-        // Update shader time uniform
-        if (powerUpSphere.material && powerUpSphere.material.uniforms) {
-          powerUpSphere.material.uniforms.time.value += 0.01;
-        }
-        
-        // Only check for collisions with paddles/sphere when game is active
-        if (currentState === GameState.PLAYING && !isGameOver) {
-          checkPowerUpPaddleCollisions();
+        for (let i = powerUpSpheres.length - 1; i >= 0; i--) {
+          const powerUp = powerUpSpheres[i];
+          if (!powerUp) {
+            // Remove null elements from the array
+            powerUpSpheres.splice(i, 1);
+            continue;
+          }
           
-          // Check for collision with the center sphere
-          if (sphere && powerUpSphere && sphere.position && powerUpSphere.position) {
-            if (powerUpSphere.position.distanceTo(sphere.position) < (0.25 + 0.35) * gameScale) {
-              // Handle power-up collision
-              activatePowerUp();
+          powerUp.position.add(powerUp.userData.velocity);
+          powerUp.rotation.x += powerUp.userData.rotationSpeed.x;
+          powerUp.rotation.y += powerUp.userData.rotationSpeed.y;
+          powerUp.rotation.z += powerUp.userData.rotationSpeed.z;
+          
+          // Update shader time uniform
+          if (powerUp.material && powerUp.material.uniforms) {
+            powerUp.material.uniforms.time.value += 0.01;
+          }
+          
+          // Only check for collisions with paddles/sphere when game is active
+          if (currentState === GameState.PLAYING && !isGameOver) {
+            checkPowerUpPaddleCollisions(powerUp);
+            
+            // Check for collision with the center sphere
+            if (sphere && powerUp && sphere.position && powerUp.position) {
+              if (powerUp.position.distanceTo(sphere.position) < (0.25 + 0.35) * gameScale) {
+                // Handle power-up collision
+                activatePowerUp(powerUp);
+                // Remove from array after activation
+                powerUpSpheres.splice(i, 1);
+                continue;
+              }
+            }
+          }
+          
+          // Remove if it goes too far, regardless of game state
+          if (powerUp && powerUp.position) {
+            if (powerUp.position.length() > spawnRadius * 1.5) {
+              scene.remove(powerUp);
+              powerUpSpheres.splice(i, 1);
             }
           }
         }
-        
-        // Remove if it goes too far, regardless of game state
-        if (powerUpSphere && powerUpSphere.position) {
-          if (powerUpSphere.position.length() > spawnRadius * 1.5) {
-            scene.remove(powerUpSphere);
-            powerUpSphere = null;
-          }
-        }
       } catch (error) {
-        console.error("Error updating power-up sphere:", error);
+        console.error("Error updating power-up spheres:", error);
         // Clean up in case of error
-        if (powerUpSphere) {
-          scene.remove(powerUpSphere);
-          powerUpSphere = null;
-        }
+        powerUpSpheres.forEach(powerUp => {
+          if (powerUp) {
+            scene.remove(powerUp);
+          }
+        });
+        powerUpSpheres = [];
       }
     }
 
@@ -804,9 +820,14 @@ function startGame() {
   
   // Reset power-up system
   nextPowerUpThreshold = 10;
-  if (powerUpSphere) {
-    scene.remove(powerUpSphere);
-    powerUpSphere = null;
+  if (powerUpSpheres.length > 0) {
+    powerUpSpheres.forEach(powerUp => {
+      if (powerUp) {
+        scene.remove(powerUp);
+        powerUp = null;
+      }
+    });
+    powerUpSpheres = [];
   }
   
   // Reset stored power-ups
@@ -931,9 +952,10 @@ init();
 
 // Create a rainbow power-up sphere
 function createPowerUpSphere() {
-  if (powerUpSphere) {
-    scene.remove(powerUpSphere);
-  }
+  // Remove the check that was limiting the number of power-ups
+  // if (powerUpSpheres.length >= 3) { // Limit to 3 active power-ups
+  //   return;
+  // }
   
   // Create geometry for the power-up sphere
   const powerUpGeometry = new THREE.IcosahedronGeometry(0.35 * gameScale, 2);
@@ -981,36 +1003,37 @@ function createPowerUpSphere() {
   });
   
   // Create the power-up sphere mesh
-  powerUpSphere = new THREE.Mesh(powerUpGeometry, powerUpMaterial);
+  const powerUp = new THREE.Mesh(powerUpGeometry, powerUpMaterial);
   
   // Position the power-up at a random angle at the spawn radius
   const angle = Math.random() * Math.PI * 2;
-  powerUpSphere.position.x = Math.cos(angle) * spawnRadius;
-  powerUpSphere.position.y = Math.sin(angle) * spawnRadius;
+  powerUp.position.x = Math.cos(angle) * spawnRadius;
+  powerUp.position.y = Math.sin(angle) * spawnRadius;
   
   // Set the power-up velocity toward the center, faster than regular cubes
-  powerUpSphere.userData.velocity = new THREE.Vector3(
-    -powerUpSphere.position.x,
-    -powerUpSphere.position.y,
+  powerUp.userData.velocity = new THREE.Vector3(
+    -powerUp.position.x,
+    -powerUp.position.y,
     0
   )
     .normalize()
     .multiplyScalar(cubeSpeed * 1.8); // Much faster than regular cubes
   
   // Set rotation speed
-  powerUpSphere.userData.rotationSpeed = new THREE.Vector3(
+  powerUp.userData.rotationSpeed = new THREE.Vector3(
     Math.random() * 0.03 - 0.015,
     Math.random() * 0.03 - 0.015,
     Math.random() * 0.03 - 0.015
   );
   
   // Add the power-up to the scene
-  scene.add(powerUpSphere);
+  scene.add(powerUp);
+  powerUpSpheres.push(powerUp);
 }
 
 // Check for collisions between power-up sphere and paddles
-function checkPowerUpPaddleCollisions() {
-  if (!powerUpSphere || !paddleGroup) return;
+function checkPowerUpPaddleCollisions(powerUp) {
+  if (!paddleGroup) return;
   
   try {
     for (let i = 0; i < paddles.length; i++) {
@@ -1024,8 +1047,8 @@ function checkPowerUpPaddleCollisions() {
       const powerUpSize = 0.35 * gameScale;
       const collisionDistance = (paddleSize.y / 2 + powerUpSize) * 0.9;
       
-      if (powerUpSphere && powerUpSphere.position && 
-          powerUpSphere.position.distanceTo(paddleWorldPosition) < collisionDistance) {
+      if (powerUp && powerUp.position && 
+          powerUp.position.distanceTo(paddleWorldPosition) < collisionDistance) {
         // Calculate reflection direction
         const normal = paddleWorldPosition
           .clone()
@@ -1033,20 +1056,20 @@ function checkPowerUpPaddleCollisions() {
           .normalize();
         
         // Reflect velocity
-        if (powerUpSphere.userData && powerUpSphere.userData.velocity) {
-          powerUpSphere.userData.velocity.reflect(normal);
+        if (powerUp.userData && powerUp.userData.velocity) {
+          powerUp.userData.velocity.reflect(normal);
           
           // Apply minimum deflection angle
           const minDeflectionAngle = Math.PI / 6;
           const deflectionAngle = Math.acos(
-            powerUpSphere.userData.velocity.dot(normal) / powerUpSphere.userData.velocity.length()
+            powerUp.userData.velocity.dot(normal) / powerUp.userData.velocity.length()
           );
           
           if (deflectionAngle < minDeflectionAngle) {
             const rotationAxis = new THREE.Vector3()
-              .crossVectors(normal, powerUpSphere.userData.velocity)
+              .crossVectors(normal, powerUp.userData.velocity)
               .normalize();
-            powerUpSphere.userData.velocity.applyAxisAngle(
+            powerUp.userData.velocity.applyAxisAngle(
               rotationAxis,
               minDeflectionAngle - deflectionAngle
             );
@@ -1054,13 +1077,13 @@ function checkPowerUpPaddleCollisions() {
           
           // Add some push to prevent sticking
           const pushDistance = 0.1 * gameScale;
-          powerUpSphere.position.add(normal.clone().multiplyScalar(pushDistance));
+          powerUp.position.add(normal.clone().multiplyScalar(pushDistance));
           
           // Speed up slightly
-          powerUpSphere.userData.velocity.multiplyScalar(1.05);
+          powerUp.userData.velocity.multiplyScalar(1.05);
           
           // Create a visual effect to indicate the bounce
-          createBounceEffect(powerUpSphere.position.clone());
+          createBounceEffect(powerUp.position.clone());
         }
         
         break;
@@ -1069,9 +1092,9 @@ function checkPowerUpPaddleCollisions() {
   } catch (error) {
     console.error("Error in power-up paddle collision:", error);
     // Clean up if there's an error
-    if (powerUpSphere) {
-      scene.remove(powerUpSphere);
-      powerUpSphere = null;
+    if (powerUp) {
+      scene.remove(powerUp);
+      powerUp = null;
     }
   }
 }
@@ -1144,11 +1167,11 @@ function createBounceEffect(position) {
 }
 
 // Activate the power-up effect
-function activatePowerUp() {
+function activatePowerUp(powerUp) {
   // Check if all paddles exist
   if (paddles.length >= 6) {
     // Store the power-up instead of using it immediately
-    storePowerUp();
+    storePowerUp(powerUp);
     return;
   }
 
@@ -1159,9 +1182,13 @@ function activatePowerUp() {
   createPowerUpEffect();
   
   // Remove the power-up sphere
-  if (powerUpSphere) {
-    scene.remove(powerUpSphere);
-    powerUpSphere = null;
+  if (powerUp) {
+    scene.remove(powerUp);
+    // Remove from the array
+    const index = powerUpSpheres.indexOf(powerUp);
+    if (index !== -1) {
+      powerUpSpheres.splice(index, 1);
+    }
   }
   
   // Play a sound effect (if we had sound)
@@ -1169,16 +1196,20 @@ function activatePowerUp() {
 }
 
 // Store a power-up for later use
-function storePowerUp() {
+function storePowerUp(powerUp) {
   if (storedPowerUps.length >= maxStoredPowerUps) {
     // If storage is full, just activate the power-up
     // Use the helper function to restore paddles while preserving rotation
     restorePaddles();
     createPowerUpEffect();
     
-    if (powerUpSphere) {
-      scene.remove(powerUpSphere);
-      powerUpSphere = null;
+    if (powerUp) {
+      scene.remove(powerUp);
+      // Remove from the array
+      const index = powerUpSpheres.indexOf(powerUp);
+      if (index !== -1) {
+        powerUpSpheres.splice(index, 1);
+      }
     }
     return;
   }
@@ -1195,18 +1226,22 @@ function storePowerUp() {
   createCollectionEffect();
   
   // Remove the power-up sphere
-  if (powerUpSphere) {
-    scene.remove(powerUpSphere);
-    powerUpSphere = null;
+  if (powerUp) {
+    scene.remove(powerUp);
+    // Remove from the array
+    const index = powerUpSpheres.indexOf(powerUp);
+    if (index !== -1) {
+      powerUpSpheres.splice(index, 1);
+    }
   }
 }
 
 // Create a collection effect when storing a power-up
 function createCollectionEffect() {
-  if (!powerUpSphere) return;
+  if (!powerUpSpheres.length) return;
   
   // Create a trail from current position to bottom of screen
-  const startPos = powerUpSphere.position.clone();
+  const startPos = powerUpSpheres[0].position.clone(); // Use the first active power-up's position
   const endPos = new THREE.Vector3(0, -3 * gameScale, 0);
   
   // Create particles along the path
@@ -1297,9 +1332,6 @@ function launchStoredPowerUp(index) {
   isLaunchingPowerUp = true;
   
   // Create a power-up sphere from the edge of the screen
-  if (powerUpSphere) {
-    scene.remove(powerUpSphere);
-  }
   
   // Create geometry for the power-up sphere
   const powerUpGeometry = new THREE.IcosahedronGeometry(0.35 * gameScale, 2);
@@ -1347,34 +1379,35 @@ function launchStoredPowerUp(index) {
   });
   
   // Create the power-up sphere mesh
-  powerUpSphere = new THREE.Mesh(powerUpGeometry, powerUpMaterial);
+  const powerUpMesh = new THREE.Mesh(powerUpGeometry, powerUpMaterial);
   
   // Position the power-up at a random angle at the spawn radius (edge of screen)
   const angle = Math.random() * Math.PI * 2;
-  powerUpSphere.position.x = Math.cos(angle) * spawnRadius;
-  powerUpSphere.position.y = Math.sin(angle) * spawnRadius;
+  powerUpMesh.position.x = Math.cos(angle) * spawnRadius;
+  powerUpMesh.position.y = Math.sin(angle) * spawnRadius;
   
   // Set the power-up velocity toward the center
-  powerUpSphere.userData.velocity = new THREE.Vector3(
-    -powerUpSphere.position.x,
-    -powerUpSphere.position.y,
+  powerUpMesh.userData.velocity = new THREE.Vector3(
+    -powerUpMesh.position.x,
+    -powerUpMesh.position.y,
     0
   )
     .normalize()
     .multiplyScalar(cubeSpeed * 2.0); // Even faster than regular power-ups
   
   // Set rotation speed
-  powerUpSphere.userData.rotationSpeed = new THREE.Vector3(
+  powerUpMesh.userData.rotationSpeed = new THREE.Vector3(
     Math.random() * 0.03 - 0.015,
     Math.random() * 0.03 - 0.015,
     Math.random() * 0.03 - 0.015
   );
   
   // Add the power-up to the scene
-  scene.add(powerUpSphere);
+  scene.add(powerUpMesh);
+  powerUpSpheres.push(powerUpMesh);
   
   // Create a visual effect when launching
-  createLaunchEffect(powerUpSphere.position.clone());
+  createLaunchEffect(powerUpMesh.position.clone());
   
   // Reset launching flag after a short delay
   setTimeout(() => {
