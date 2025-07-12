@@ -261,7 +261,8 @@ const cubes = [];
 
 // Function to create a new cube
 function createCube() {
-  if (cubes.length >= 20 || currentState !== GameState.PLAYING || isGameOver) return;
+  // Remove the condition that prevents spawning when game is over
+  if (cubes.length >= 20 || currentState !== GameState.PLAYING && !isGameOver) return;
 
   const cubeSize =
     (Math.random() * (cubeMaxSize - cubeMinSize) + cubeMinSize) * gameScale;
@@ -344,6 +345,38 @@ function stopSpawningCubes() {
   }
 }
 
+// Transition to game over state
+function transitionToGameOver() {
+  // Update high score if current score is higher
+  if (currentScore > highScore) {
+    highScore = currentScore;
+  }
+
+  explodePaddles();
+  
+  // Instead of stopping cube spawning, increase the spawn rate for game over
+  if (cubeSpawnInterval) {
+    clearInterval(cubeSpawnInterval);
+  }
+  // Spawn cubes more frequently during game over
+  cubeSpawnInterval = setInterval(createCube, spawnInterval / 2);
+  
+  setTimeout(() => {
+    currentState = GameState.GAME_OVER;
+    overlay.style.display = "flex";
+    gameOverText.style.display = "block";
+    startText.style.display = "block";
+    // Show and update high score on game over
+    document.getElementById("highScore").style.display = "block";
+    displayHighScore();
+    flashInsertCoin();
+    animateLogo();
+    // Hide score and stored power-ups on game over
+    document.getElementById("scoreDisplay").style.display = "none";
+    document.getElementById('storedPowerUps').style.display = "none";
+  }, 5000);
+}
+
 function checkCollisions() {
   // Skip collision detection if game is not in playing state
   if (currentState !== GameState.PLAYING || isGameOver) return;
@@ -384,30 +417,8 @@ function checkCollisions() {
       sphere = null;
       isGameOver = true;
       
-      // Stop spawning cubes immediately
-      stopSpawningCubes();
-
-      // Update high score if current score is higher
-      if (currentScore > highScore) {
-        highScore = currentScore;
-      }
-
-      explodePaddles();
-
-      setTimeout(() => {
-        currentState = GameState.GAME_OVER;
-        overlay.style.display = "flex";
-        gameOverText.style.display = "block";
-        startText.style.display = "block";
-        // Show and update high score on game over
-        document.getElementById("highScore").style.display = "block";
-        displayHighScore();
-        flashInsertCoin();
-        animateLogo();
-        // Hide score and stored power-ups on game over
-        document.getElementById("scoreDisplay").style.display = "none";
-        document.getElementById('storedPowerUps').style.display = "none";
-      }, 5000);
+      // Call the new transition function instead of handling game over here
+      transitionToGameOver();
     }
 
     for (let j = paddles.length - 1; j >= 0; j--) {
@@ -850,6 +861,9 @@ function handleVisibilityChange() {
       if (document.getElementById('countdownContainer').style.display === 'none') {
         startSpawningCubes();
       }
+    } else if (isGameOver) {
+      // If game is over, restart the faster cube spawning
+      cubeSpawnInterval = setInterval(createCube, spawnInterval / 2);
     }
   }
 }
