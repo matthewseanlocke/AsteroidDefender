@@ -25,6 +25,7 @@ let powerUpSpheres = [];
 let storedPowerUps = []; // Array to store power-ups
 const maxStoredPowerUps = 3; // Maximum number of stored power-ups
 let isLaunchingPowerUp = false; // Flag to track if a power-up is being launched
+let launchingPowerUpTimeout = null; // Timeout reference for safety reset
 
 // Global variable to track the blinking interval
 let insertCoinBlinkInterval = null;
@@ -551,6 +552,12 @@ function gameLoop() {
   requestAnimationFrame(gameLoop);
 
   if (!isPaused) {
+    // Safety check for launching power-up flag
+    if (isLaunchingPowerUp && !launchingPowerUpTimeout) {
+      console.log('Resetting stuck launching power-up flag');
+      isLaunchingPowerUp = false;
+    }
+    
     // Update cube positions and rotations regardless of game state
     cubes.forEach((cube) => {
       if (
@@ -585,6 +592,14 @@ function gameLoop() {
           if (!powerUp) {
             // Remove null elements from the array
             powerUpSpheres.splice(i, 1);
+            console.log('Removed null power-up, remaining:', powerUpSpheres.length);
+            continue;
+          }
+          
+          // Skip if the power-up has been removed from the scene
+          if (!powerUp.parent) {
+            powerUpSpheres.splice(i, 1);
+            console.log('Removed detached power-up, remaining:', powerUpSpheres.length);
             continue;
           }
           
@@ -609,6 +624,7 @@ function gameLoop() {
                 activatePowerUp(powerUp);
                 // Remove from array after activation
                 powerUpSpheres.splice(i, 1);
+                console.log('Power-up activated, remaining:', powerUpSpheres.length);
                 continue;
               }
             }
@@ -619,6 +635,7 @@ function gameLoop() {
             if (powerUp.position.length() > spawnRadius * 1.5) {
               scene.remove(powerUp);
               powerUpSpheres.splice(i, 1);
+              console.log('Power-up went too far, remaining:', powerUpSpheres.length);
             }
           }
         }
@@ -1026,9 +1043,16 @@ function createPowerUpSphere() {
     Math.random() * 0.03 - 0.015
   );
   
+  // Add unique ID for tracking
+  powerUp.userData.id = 'powerup-' + Date.now() + '-' + Math.floor(Math.random() * 1000);
+  powerUp.userData.type = 'earned';
+  
   // Add the power-up to the scene
   scene.add(powerUp);
   powerUpSpheres.push(powerUp);
+  
+  console.log('Created power-up sphere:', powerUp.userData.id);
+  console.log('Total power-up spheres:', powerUpSpheres.length);
 }
 
 // Check for collisions between power-up sphere and paddles
@@ -1320,7 +1344,13 @@ function updateStoredPowerUpsDisplay() {
 
 // Launch a stored power-up
 function launchStoredPowerUp(index) {
-  if (index >= storedPowerUps.length || isLaunchingPowerUp) return;
+  if (index >= storedPowerUps.length || isLaunchingPowerUp) {
+    // Reset the flag if we're trying to launch but can't
+    setTimeout(() => {
+      isLaunchingPowerUp = false;
+    }, 100);
+    return;
+  }
   
   // Remove from stored array
   const powerUp = storedPowerUps.splice(index, 1)[0];
@@ -1330,6 +1360,11 @@ function launchStoredPowerUp(index) {
   
   // Set launching flag
   isLaunchingPowerUp = true;
+  
+  // Clear any existing timeout
+  if (launchingPowerUpTimeout) {
+    clearTimeout(launchingPowerUpTimeout);
+  }
   
   // Create a power-up sphere from the edge of the screen
   
@@ -1402,17 +1437,26 @@ function launchStoredPowerUp(index) {
     Math.random() * 0.03 - 0.015
   );
   
+  // Add unique ID for tracking
+  powerUpMesh.userData.id = 'launched-' + Date.now() + '-' + Math.floor(Math.random() * 1000);
+  powerUpMesh.userData.type = 'launched';
+  powerUpMesh.userData.originalId = powerUp.id; // Store the original power-up ID
+  
   // Add the power-up to the scene
   scene.add(powerUpMesh);
   powerUpSpheres.push(powerUpMesh);
+  
+  console.log('Launched power-up sphere:', powerUpMesh.userData.id);
+  console.log('Total power-up spheres:', powerUpSpheres.length);
   
   // Create a visual effect when launching
   createLaunchEffect(powerUpMesh.position.clone());
   
   // Reset launching flag after a short delay
-  setTimeout(() => {
+  launchingPowerUpTimeout = setTimeout(() => {
     isLaunchingPowerUp = false;
-  }, 1000);
+    launchingPowerUpTimeout = null;
+  }, 500); // Reduced from 1000ms to 500ms for better responsiveness
 }
 
 // Create a visual effect when launching a stored power-up
