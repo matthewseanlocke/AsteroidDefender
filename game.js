@@ -24,6 +24,9 @@ let storedPowerUps = []; // Array to store power-ups
 const maxStoredPowerUps = 3; // Maximum number of stored power-ups
 let isLaunchingPowerUp = false; // Flag to track if a power-up is being launched
 
+// Global variable to track the blinking interval
+let insertCoinBlinkInterval = null;
+
 // SETTINGS
 const gameScale = 0.25;
 const cubeSpeed = 0.02 * Math.sqrt(gameScale);
@@ -369,6 +372,7 @@ function transitionToGameOver() {
     // Show and update high score on game over
     document.getElementById("highScore").style.display = "block";
     displayHighScore();
+    // Make sure we use a fresh blinking interval
     flashInsertCoin();
     animateLogo();
     // Hide score and stored power-ups on game over
@@ -842,8 +846,14 @@ function animateLogo() {
 }
 
 function flashInsertCoin() {
+  // Clear any existing interval first
+  if (insertCoinBlinkInterval) {
+    clearInterval(insertCoinBlinkInterval);
+    insertCoinBlinkInterval = null;
+  }
+  
   let visible = true;
-  setInterval(() => {
+  insertCoinBlinkInterval = setInterval(() => {
     startText.style.opacity = visible ? "1" : "0";
     visible = !visible;
   }, 400);
