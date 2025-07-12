@@ -559,6 +559,50 @@ function gameLoop() {
     // Check for cube-to-cube collisions regardless of game state
     checkCubeCollisions();
 
+    // Update power-up sphere if it exists, regardless of game state
+    if (powerUpSphere) {
+      try {
+        // Continue moving the power-up sphere even when game is over
+        powerUpSphere.position.add(powerUpSphere.userData.velocity);
+        powerUpSphere.rotation.x += powerUpSphere.userData.rotationSpeed.x;
+        powerUpSphere.rotation.y += powerUpSphere.userData.rotationSpeed.y;
+        powerUpSphere.rotation.z += powerUpSphere.userData.rotationSpeed.z;
+        
+        // Update shader time uniform
+        if (powerUpSphere.material && powerUpSphere.material.uniforms) {
+          powerUpSphere.material.uniforms.time.value += 0.01;
+        }
+        
+        // Only check for collisions with paddles/sphere when game is active
+        if (currentState === GameState.PLAYING && !isGameOver) {
+          checkPowerUpPaddleCollisions();
+          
+          // Check for collision with the center sphere
+          if (sphere && powerUpSphere && sphere.position && powerUpSphere.position) {
+            if (powerUpSphere.position.distanceTo(sphere.position) < (0.25 + 0.35) * gameScale) {
+              // Handle power-up collision
+              activatePowerUp();
+            }
+          }
+        }
+        
+        // Remove if it goes too far, regardless of game state
+        if (powerUpSphere && powerUpSphere.position) {
+          if (powerUpSphere.position.length() > spawnRadius * 1.5) {
+            scene.remove(powerUpSphere);
+            powerUpSphere = null;
+          }
+        }
+      } catch (error) {
+        console.error("Error updating power-up sphere:", error);
+        // Clean up in case of error
+        if (powerUpSphere) {
+          scene.remove(powerUpSphere);
+          powerUpSphere = null;
+        }
+      }
+    }
+
     if (currentState === GameState.PLAYING && !isGameOver) {
       if (paddleGroup) {
         // Update paddle animations if needed
@@ -583,20 +627,6 @@ function gameLoop() {
         sphere.rotation.x += sphere.userData.rotationSpeed.x;
         sphere.rotation.y += sphere.userData.rotationSpeed.y;
         sphere.rotation.z += sphere.userData.rotationSpeed.z;
-      }
-
-      // Update power-up sphere if it exists
-      if (powerUpSphere) {
-        try {
-          updatePowerUpSphere();
-        } catch (error) {
-          console.error("Error updating power-up sphere:", error);
-          // Clean up in case of error
-          if (powerUpSphere) {
-            scene.remove(powerUpSphere);
-            powerUpSphere = null;
-          }
-        }
       }
 
       checkCollisions();
@@ -952,44 +982,6 @@ function createPowerUpSphere() {
   
   // Add the power-up to the scene
   scene.add(powerUpSphere);
-}
-
-// Update the power-up sphere
-function updatePowerUpSphere() {
-  if (!powerUpSphere) return;
-  
-  // Update position
-  powerUpSphere.position.add(powerUpSphere.userData.velocity);
-  
-  // Update rotation
-  powerUpSphere.rotation.x += powerUpSphere.userData.rotationSpeed.x;
-  powerUpSphere.rotation.y += powerUpSphere.userData.rotationSpeed.y;
-  powerUpSphere.rotation.z += powerUpSphere.userData.rotationSpeed.z;
-  
-  // Update shader time uniform
-  if (powerUpSphere.material && powerUpSphere.material.uniforms) {
-    powerUpSphere.material.uniforms.time.value += 0.01;
-  }
-  
-  // Check for collision with paddles
-  checkPowerUpPaddleCollisions();
-  
-  // Check for collision with the center sphere
-  if (sphere && powerUpSphere && sphere.position && powerUpSphere.position) {
-    if (powerUpSphere.position.distanceTo(sphere.position) < (0.25 + 0.35) * gameScale) {
-      // Handle power-up collision
-      activatePowerUp();
-      return; // Exit early since powerUpSphere is now null
-    }
-  }
-  
-  // Remove if it goes too far
-  if (powerUpSphere && powerUpSphere.position) {
-    if (powerUpSphere.position.length() > spawnRadius * 1.5) {
-      scene.remove(powerUpSphere);
-      powerUpSphere = null;
-    }
-  }
 }
 
 // Check for collisions between power-up sphere and paddles
