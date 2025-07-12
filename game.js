@@ -1128,11 +1128,8 @@ function activatePowerUp() {
     return;
   }
 
-  // Regenerate all paddles
-  if (paddleGroup) {
-    scene.remove(paddleGroup);
-  }
-  createPaddles();
+  // Regenerate all paddles while preserving rotation
+  restorePaddles();
   
   // Create a visual effect
   createPowerUpEffect();
@@ -1151,10 +1148,8 @@ function activatePowerUp() {
 function storePowerUp() {
   if (storedPowerUps.length >= maxStoredPowerUps) {
     // If storage is full, just activate the power-up
-    if (paddleGroup) {
-      scene.remove(paddleGroup);
-    }
-    createPaddles();
+    // Use the helper function to restore paddles while preserving rotation
+    restorePaddles();
     createPowerUpEffect();
     
     if (powerUpSphere) {
@@ -1500,6 +1495,24 @@ function createPowerUpEffect() {
       scene.remove(effect);
     }
   }, 50);
+}
+
+// Helper function to restore paddles while preserving rotation
+function restorePaddles() {
+  // Save the current paddle group rotation
+  let currentRotation = 0;
+  if (paddleGroup) {
+    currentRotation = paddleGroup.rotation.z;
+    scene.remove(paddleGroup);
+  }
+  
+  // Regenerate all paddles
+  createPaddles();
+  
+  // Restore the previous rotation
+  if (paddleGroup) {
+    paddleGroup.rotation.z = currentRotation;
+  }
 }
 
 // Update paddle animations
