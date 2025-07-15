@@ -293,8 +293,8 @@ const cubes = [];
 
 // Function to create a new cube
 function createCube() {
-  // Remove the condition that prevents spawning when game is over
-  if (cubes.length >= 20 || currentState !== GameState.PLAYING && !isGameOver) return;
+  // Don't create cubes when the game is paused
+  if (isPaused || cubes.length >= 20 || (currentState !== GameState.PLAYING && !isGameOver)) return;
 
   const cubeSize =
     (Math.random() * (cubeMaxSize - cubeMinSize) + cubeMinSize) * gameScale;
@@ -390,8 +390,11 @@ function transitionToGameOver() {
   if (cubeSpawnInterval) {
     clearInterval(cubeSpawnInterval);
   }
-  // Spawn cubes more frequently during game over
-  cubeSpawnInterval = setInterval(createCube, spawnInterval / 2);
+  
+  // Only spawn cubes more frequently during game over if the game is not paused
+  if (!isPaused) {
+    cubeSpawnInterval = setInterval(createCube, spawnInterval / 2);
+  }
   
   setTimeout(() => {
     currentState = GameState.GAME_OVER;
@@ -941,8 +944,9 @@ function handleVisibilityChange() {
         startSpawningCubes();
       }
     } else if (isGameOver) {
-      // If game is over, restart the faster cube spawning
-      cubeSpawnInterval = setInterval(createCube, spawnInterval / 2);
+      // Don't restart cube spawning when returning to a game over state
+      // This was causing cubes to spawn when switching tabs
+      // cubeSpawnInterval = setInterval(createCube, spawnInterval / 2);
     }
   }
 }
