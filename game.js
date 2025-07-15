@@ -229,17 +229,17 @@ document.addEventListener("touchend", handleTouchEnd, { passive: false });
 function handleTouchStart(event) {
   if (currentState === GameState.PLAYING) {
     event.preventDefault();
-    touchStartY = event.touches[0].clientY;
+    const touch = event.touches[0];
+    updatePaddlePosition(touch);
     isTouching = true;
-    updateRotationSpeed();
   }
 }
 
 function handleTouchMove(event) {
   if (currentState === GameState.PLAYING) {
     event.preventDefault();
-    touchStartY = event.touches[0].clientY;
-    updateRotationSpeed();
+    const touch = event.touches[0];
+    updatePaddlePosition(touch);
   }
 }
 
@@ -247,20 +247,46 @@ function handleTouchEnd(event) {
   if (currentState === GameState.PLAYING) {
     event.preventDefault();
     isTouching = false;
-    rotationSpeed = 0;
   }
 }
 
-function updateRotationSpeed() {
-  if (isTouching) {
-    const screenHeight = window.innerHeight;
-    if (touchStartY < screenHeight / 2) {
-      rotationSpeed = 0.05;
-    } else {
-      rotationSpeed = -0.05;
-    }
+function updatePaddlePosition(touch) {
+  // Convert touch position to normalized device coordinates (-1 to +1)
+  const touchX = (touch.clientX / window.innerWidth) * 2 - 1;
+  const touchY = -(touch.clientY / window.innerHeight) * 2 + 1;
+  
+  // Create a raycaster to project the touch position into 3D space
+  const raycaster = new THREE.Raycaster();
+  const touchVector = new THREE.Vector2(touchX, touchY);
+  raycaster.setFromCamera(touchVector, camera);
+  
+  // Create a plane at z=0 (the game plane)
+  const gamePlane = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0);
+  
+  // Find the intersection point of the ray with the plane
+  const intersectionPoint = new THREE.Vector3();
+  raycaster.ray.intersectPlane(gamePlane, intersectionPoint);
+  
+  // Calculate the angle from the center to the intersection point
+  const touchAngle = Math.atan2(intersectionPoint.y, intersectionPoint.x);
+  
+  // Set paddle group rotation to follow the touch
+  if (paddleGroup) {
+    paddleGroup.rotation.z = touchAngle - Math.PI / 2;
   }
 }
+
+// Remove the old updateRotationSpeed function since we're not using it anymore
+// function updateRotationSpeed() {
+//   if (isTouching) {
+//     const screenHeight = window.innerHeight;
+//     if (touchStartY < screenHeight / 2) {
+//       rotationSpeed = 0.05;
+//     } else {
+//       rotationSpeed = -0.05;
+//     }
+//   }
+// }
 
 // Cubes array
 const cubes = [];
@@ -660,7 +686,9 @@ function gameLoop() {
           console.error("Error updating paddle animations:", error);
         }
         
-        if (paddleGroup && typeof paddleGroup.rotation === 'object' && 
+        // Only apply rotationSpeed if we're not touching the screen
+        // This allows keyboard controls to still work
+        if (!isTouching && paddleGroup && typeof paddleGroup.rotation === 'object' && 
             typeof paddleGroup.rotation.z === 'number' && 
             typeof rotationSpeed === 'number') {
           paddleGroup.rotation.z += rotationSpeed;
@@ -846,6 +874,9 @@ function startGame() {
     });
     powerUpSpheres = [];
   }
+  
+  // Initialize touch indicator
+  // createTouchIndicator(); // Removed as per edit hint
   
   // Reset stored power-ups
   resetStoredPowerUps();
